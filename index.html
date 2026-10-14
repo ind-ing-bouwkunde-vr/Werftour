@@ -1,0 +1,2287 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Werftour Studio</title>
+<meta name="description" content="Gratis app om zelf virtuele werfbezoeken te maken: 360°-rondleidingen, 360°-video's en BIM-modellen, op pc, gsm en Meta Quest.">
+<meta name="theme-color" content="#e2600c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}</style>
+<script>
+/* offline cache: only on the published site, never inside exported tours */
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+</script>
+
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a start screen to pick a mode (360° tour or BIM model), then a full-bleed viewer as the work surface with a side rail (bottom sheet on phones) for content and editing. */
+:root{
+  --bg:#eef0f2; --panel:#ffffff; --line:#d5dade; --fg:#1b2329; --muted:#5d6a74;
+  --accent:#e2600c; --accent-fg:#ffffff; --accent-soft:#fde9dc;
+  --ok:#2f7d4a; --bad:#c23b2a; --warn:#a85a00; --warn-soft:#fff1dc;
+  --veil:rgba(15,20,24,.72);
+  --f-display:"IBM Plex Sans Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12171b; --panel:#192026; --line:#2b353d; --fg:#e7ecef; --muted:#93a1ab;
+  --accent:#f07a2a; --accent-fg:#1a1006; --accent-soft:#3a2617;
+  --ok:#5cc07e; --bad:#ef6a57; --warn:#f3b25c; --warn-soft:#3a2a12; --veil:rgba(5,8,10,.78); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171b; --panel:#192026; --line:#2b353d; --fg:#e7ecef; --muted:#93a1ab;
+  --accent:#f07a2a; --accent-fg:#1a1006; --accent-soft:#3a2617;
+  --ok:#5cc07e; --bad:#ef6a57; --warn:#f3b25c; --warn-soft:#3a2a12; --veil:rgba(5,8,10,.78); color-scheme:dark}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr}
+header.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{font-family:var(--f-display);font-weight:700;font-size:17px;letter-spacing:.02em;display:flex;align-items:center;gap:8px;white-space:nowrap;background:none;border:0;padding:2px 4px;border-radius:var(--r);cursor:pointer}
+.brand:disabled{cursor:default}
+.brand i{display:inline-block;width:14px;height:14px;border:3px solid var(--accent);border-radius:50%;position:relative}
+.brand i::after{content:"";position:absolute;inset:2px;background:var(--accent);border-radius:50%}
+.brand .back{font-family:var(--f-body);font-weight:500;font-size:12px;color:var(--muted)}
+.apptools{display:contents}
+.kindchip{font-family:var(--f-display);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:1px 6px;white-space:nowrap}
+#tourTitle{font-family:var(--f-display);font-weight:600;font-size:16px;border:1px solid transparent;background:transparent;border-radius:var(--r);padding:4px 8px;min-width:180px;flex:1 1 220px;text-overflow:ellipsis}
+#tourTitle:hover:not([readonly]),#tourTitle:focus{border-color:var(--line);outline:none}
+.save{font-size:12px;color:var(--muted);white-space:nowrap}
+.chipbtn{border:1px solid var(--warn);background:var(--warn-soft);color:var(--warn);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.seg button{border:0;background:transparent;padding:6px 12px;cursor:pointer;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:var(--r);padding:6px 12px;cursor:pointer;font-weight:500;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:6px;justify-content:center}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.small{padding:3px 8px;font-size:12px}
+.btn.danger{color:var(--bad)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted);text-decoration:underline;padding-inline:4px}
+.btn:disabled{opacity:.45;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+
+/* start screen */
+.home{overflow-y:auto;min-height:0;padding-block:28px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.home-in{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+.hero h1{font-family:var(--f-display);font-size:clamp(26px,4vw,38px);line-height:1.1;margin:0 0 8px;text-wrap:balance}
+.hero p{margin:0;color:var(--muted);font-size:15px;max-width:62ch;line-height:1.5}
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.mode-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.mode-card h2{margin:0;font-family:var(--f-display);font-size:22px;font-weight:600}
+.mode-card p{margin:0;color:var(--muted);line-height:1.5;flex:1}
+.mode-card ul{margin:0;padding-left:18px;color:var(--fg);line-height:1.6;font-size:13px}
+.ill{height:96px;border-radius:8px;background:#1b252c;display:grid;place-items:center;overflow:hidden}
+.ill svg{max-width:100%;height:100%}
+.projects{display:flex;flex-direction:column;gap:10px}
+.ph{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.ph h2{margin:0;font-family:var(--f-display);font-size:18px}
+.plist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.prow{display:grid;grid-template-columns:96px 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
+.prow:first-child{border-top:0}
+.prow .th{width:96px;height:48px;border-radius:4px;object-fit:cover;background:var(--line);display:block}
+.prow b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow small{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.prow .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.pempty{padding:18px;color:var(--muted);text-align:center}
+.drophint{border:2px dashed var(--line);border-radius:10px;padding:14px;text-align:center;color:var(--muted);font-size:13px}
+.home.drag .drophint,.stage.drag::after{border-color:var(--accent);color:var(--accent)}
+.stage.drag::after{content:"Laat los om toe te voegen";position:absolute;inset:12px;border:3px dashed var(--accent);border-radius:12px;display:grid;place-items:center;color:#fff;background:rgba(226,96,12,.25);font-weight:600;font-size:18px;z-index:9}
+
+/* editor layout */
+main{display:grid;grid-template-columns:330px 1fr;min-height:0}
+aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;min-height:0;display:flex;flex-direction:column;position:relative}
+.sec{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.sec h2{margin:0;font-family:var(--f-display);font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.scenes{display:flex;flex-direction:column;gap:6px}
+.scene{display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:center;padding:6px;border:1px solid transparent;border-radius:var(--r);cursor:pointer;background:transparent;text-align:left}
+.scene:hover{border-color:var(--line)}
+.scene[aria-current="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.scene .th{width:72px;height:36px;border-radius:3px;display:block;object-fit:cover;background:var(--line)}
+.scene b{display:block;font-weight:600;font-size:13px;line-height:1.25}
+.scene small{color:var(--muted);font-size:12px}
+.kind{font-family:var(--f-display);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
+label.f input,label.f textarea,label.f select{border:1px solid var(--line);background:var(--bg);border-radius:var(--r);padding:6px 8px;font-size:13px;color:var(--fg)}
+label.f textarea{resize:vertical;min-height:56px}
+label.chk{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--fg)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.col{display:flex;flex-direction:column;gap:10px}
+.hint{font-size:12px;color:var(--muted);line-height:1.45;margin:0}
+.hint b{color:var(--fg)}
+.hint kbd{font-family:var(--f-mono);font-size:11px;border:1px solid var(--line);border-radius:3px;padding:0 4px;color:var(--fg)}
+.hs-list{display:flex;flex-direction:column;gap:4px}
+.hs-item{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:var(--r);cursor:pointer;border:1px solid transparent;background:transparent;text-align:left;width:100%}
+.hs-item:hover{border-color:var(--line)}
+.hs-item[aria-current="true"]{border-color:var(--accent)}
+.hs-item span.t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.coord{font-family:var(--f-mono);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;text-transform:none;letter-spacing:0;font-weight:400}
+.chip{font-family:var(--f-display);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:1px 6px;border-radius:3px;color:#fff;flex:none}
+.num{font-family:var(--f-mono);font-size:11px;font-weight:500;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--line);color:var(--fg);flex:none;font-variant-numeric:tabular-nums}
+.hs-item[aria-current="true"] .num{background:var(--accent);color:var(--accent-fg)}
+.checklist{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.checklist li{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.35}
+.checklist li.done{color:var(--muted);text-decoration:line-through}
+.checklist li.done .num{background:var(--ok);color:#fff}
+.checklist li.next .num{background:var(--accent);color:var(--accent-fg)}
+.typegrid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.typegrid button{border:1px solid var(--line);background:var(--bg);border-radius:var(--r);padding:6px 2px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px}
+.typegrid button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.ti{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:var(--f-display);font-weight:700;font-size:13px}
+.prev{border-radius:var(--r);max-height:140px;object-fit:contain;align-self:flex-start}
+.rec{color:var(--bad);font-weight:600}
+.foot{margin-top:auto;padding:12px 16px;font-size:11px;color:var(--muted);line-height:1.5;display:flex;flex-direction:column;gap:4px}
+
+/* stage */
+.stage{position:relative;min-height:0;min-width:0;overflow:hidden;background:#11171b;touch-action:none}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}
+.stage.editing #gl{cursor:crosshair}
+#markers{position:absolute;inset:0;pointer-events:none}
+.mk{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;border:0;cursor:pointer;background:transparent;display:flex;flex-direction:column;align-items:center;gap:4px;padding:0}
+.mk .dot{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:var(--f-display);font-weight:700;font-size:16px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.45);transition:transform .15s}
+.mk:hover .dot,.mk.sel .dot{transform:scale(1.15)}
+.mk.sel .dot{outline:3px solid var(--accent);outline-offset:2px}
+.mk .lbl{background:rgba(10,14,17,.82);color:#fff;font-size:12px;font-weight:500;padding:2px 8px;border-radius:3px;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.hud{position:absolute;left:12px;top:12px;display:flex;flex-direction:column;gap:6px;pointer-events:none;max-width:calc(100% - 24px)}
+.hud .name{background:rgba(10,14,17,.8);color:#fff;padding:6px 10px;border-radius:var(--r);font-family:var(--f-display);font-weight:600;font-size:16px;align-self:flex-start}
+.hud .meta{background:rgba(10,14,17,.7);color:#d9e1e6;padding:4px 10px;border-radius:var(--r);font-size:12px;font-family:var(--f-mono);font-variant-numeric:tabular-nums;align-self:flex-start}
+.hud .score{background:rgba(138,79,191,.92);color:#fff;padding:4px 10px;border-radius:var(--r);font-size:12px;font-weight:600;align-self:flex-start}
+.viewseg{position:absolute;right:12px;top:12px;background:rgba(10,14,17,.8);border-color:rgba(255,255,255,.2)}
+.viewseg button{color:#fff}
+.viewseg button[aria-pressed="true"]{background:#fff;color:#11161a}
+.bim{position:absolute;left:12px;bottom:14px;background:rgba(10,14,17,.86);color:#fff;border-radius:var(--r);padding:10px 12px;max-width:min(340px,calc(100% - 24px));display:flex;flex-direction:column;gap:3px;font-size:13px}
+.bim .ty{font-family:var(--f-mono);font-size:12px;color:#ffb784}
+.bim .gid{font-family:var(--f-mono);font-size:11px;color:#a9b6bf;word-break:break-all}
+.bim button{align-self:flex-start;margin-top:4px;background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:4px;padding:2px 8px;font-size:12px;cursor:pointer}
+.pad{position:absolute;right:12px;bottom:14px;display:grid;grid-template-columns:repeat(3,40px);grid-template-rows:repeat(2,40px);gap:4px}
+.pad button{border:0;border-radius:6px;background:rgba(10,14,17,.72);color:#fff;font-size:16px;cursor:pointer;touch-action:none}
+.pad button:active{background:var(--accent)}
+.pad .up{grid-column:2}
+.editbar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:var(--accent);color:var(--accent-fg);padding:6px 14px;border-radius:999px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.35);white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.empty{position:absolute;inset:0;display:grid;place-items:center;padding:20px;color:#e8eef1;text-align:center;background:radial-gradient(circle at 50% 40%,#25313a,#11171b 70%)}
+.empty>div{max-width:440px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.empty h3{margin:0;font-family:var(--f-display);font-size:22px;font-weight:600}
+.empty p{margin:0;line-height:1.55;color:#b9c6ce}
+.emp-ico{width:84px;height:84px;border-radius:50%;border:3px dashed #f07a2a;display:grid;place-items:center;font-family:var(--f-display);font-weight:700;color:#f07a2a;font-size:20px}
+.picker{position:absolute;z-index:7;width:300px;max-width:calc(100% - 16px);background:var(--panel);color:var(--fg);border-radius:10px;box-shadow:0 10px 34px rgba(0,0,0,.45);padding:10px;display:flex;flex-direction:column;gap:6px}
+.picker>p{margin:2px 4px 2px;font-weight:600;font-size:13px}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.pgrid button{display:flex;gap:8px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:var(--r);padding:6px;cursor:pointer;min-width:0}
+.pgrid button:hover:not(:disabled){border-color:var(--accent)}
+.pgrid button:disabled{opacity:.45;cursor:default}
+.pgrid b{display:block;font-size:12px}
+.pgrid small{display:block;font-size:11px;color:var(--muted);line-height:1.25}
+.pin{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid #fff;transform:translate(-50%,-50%);z-index:6;pointer-events:none;box-shadow:0 0 0 6px rgba(240,122,42,.35)}
+.card{position:absolute;inset:0;display:grid;place-items:center;background:var(--veil);padding:16px;z-index:5}
+.card>div{background:var(--panel);color:var(--fg);border-radius:10px;max-width:480px;width:100%;max-height:100%;overflow:auto;padding:18px 20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+.card h3{margin:0;font-family:var(--f-display);font-size:20px;font-weight:600;text-wrap:balance}
+.card p{margin:0;line-height:1.55;white-space:pre-wrap}
+.card img,.card video{border-radius:var(--r);max-width:100%}
+.card audio{width:100%}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.opts{display:flex;flex-direction:column;gap:6px}
+.opt{text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:var(--r);padding:8px 10px;cursor:pointer}
+.opt.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 15%,var(--bg))}
+.opt.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,var(--bg))}
+.fb{font-weight:600}.fb.ok{color:var(--ok)}.fb.bad{color:var(--bad)}
+.url{font-family:var(--f-mono);font-size:12px;color:var(--muted);word-break:break-all}
+.toast{position:fixed;left:50%;bottom:calc(64px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:var(--r);font-size:13px;z-index:20;max-width:calc(100% - 32px)}
+.confirm{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--bad);flex-wrap:wrap}
+input[type=file]{display:none}
+/* guided tour */
+.gbar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:min(680px,calc(100% - 24px));background:rgba(12,16,19,.92);color:#fff;border-radius:10px;padding:12px 14px 10px;display:flex;flex-direction:column;gap:8px;z-index:6;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.gtop{display:flex;align-items:center;gap:10px}
+.gstep{font-family:var(--f-mono);font-size:12px;background:var(--accent);color:var(--accent-fg);border-radius:4px;padding:1px 7px;font-variant-numeric:tabular-nums;flex:none}
+.gtop b{flex:1;min-width:0;font-family:var(--f-display);font-size:16px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gbar p{margin:0;font-size:14px;line-height:1.5;max-height:4.6em;overflow:auto;color:#e6ecef}
+.gctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.gctl button,.gtop button{border:1px solid rgba(255,255,255,.28);background:transparent;color:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;font-weight:500}
+.gctl button:disabled{opacity:.4;cursor:default}
+.gctl button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.gctl label{display:flex;gap:6px;align-items:center;font-size:12px;color:#c3ced5;margin-left:auto}
+.gprog{height:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}
+.gprog i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.gstart{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:4;background:var(--accent);color:var(--accent-fg);border:0;border-radius:999px;padding:9px 18px;font-weight:600;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35);white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis}
+.garrow{position:absolute;transform:translate(-50%,-50%);pointer-events:none;z-index:4;display:flex;flex-direction:column;align-items:center;gap:4px}
+.garrow svg{transform:rotate(var(--rot,0rad));filter:drop-shadow(0 2px 6px rgba(0,0,0,.55))}
+.garrow span{background:rgba(10,14,17,.85);color:#fff;font-size:12px;font-weight:600;padding:2px 8px;border-radius:3px;white-space:nowrap}
+@keyframes gpulse{0%{box-shadow:0 0 0 0 rgba(240,122,42,.85)}100%{box-shadow:0 0 0 20px rgba(240,122,42,0)}}
+.mk.focus .dot{animation:gpulse 1.4s ease-out infinite;outline:3px solid #f07a2a;outline-offset:2px}
+.stage.guiding .bim{bottom:auto;top:110px}
+.vbar{position:absolute;left:12px;right:12px;bottom:12px;z-index:5;display:flex;align-items:center;gap:10px;background:rgba(12,16,19,.88);color:#fff;border-radius:10px;padding:8px 12px;flex-wrap:wrap}
+.vbtn{border:1px solid rgba(255,255,255,.28);background:transparent;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-weight:600;min-width:38px;white-space:nowrap}
+.vbtn.main{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.vtime{font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.vtrack{position:relative;flex:1 1 220px;min-width:140px;height:26px;display:flex;align-items:center}
+.vtrack input{width:100%;accent-color:#f07a2a;margin:0}
+.vticks{position:absolute;left:0;right:0;top:-2px;height:8px;pointer-events:none}
+.vticks i{position:absolute;top:0;width:9px;height:9px;border-radius:50%;transform:translateX(-50%);border:1.5px solid #fff}
+.vpart{font-size:12px;color:#c3ced5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.vbig{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:88px;height:88px;border-radius:50%;border:3px solid #fff;background:rgba(226,96,12,.92);color:#fff;font-size:34px;cursor:pointer;z-index:4;box-shadow:0 8px 30px rgba(0,0,0,.4);padding-left:6px}
+.stage.hasvbar .editbar{bottom:84px}
+.stage.hasvbar .bim{bottom:84px}
+@media (max-width:760px){
+  main{grid-template-columns:1fr;grid-template-rows:minmax(280px,58%) 1fr}
+  aside{order:2;border-right:0;border-top:1px solid var(--line)}
+  .stage{order:1}
+  header.top{gap:8px}
+  #tourTitle{flex-basis:100%;order:3}
+  .bim{bottom:110px}
+  .gbar{padding:8px 10px;gap:6px}
+  .gbar p{max-height:3em;font-size:13px}
+  .prow{grid-template-columns:64px 1fr}
+  .prow .th{width:64px;height:32px}
+  .prow .acts{grid-column:1/-1;justify-content:flex-start}
+}
+@media (prefers-reduced-motion:reduce){.mk .dot,.bar i,.gprog i{transition:none}.mk.focus .dot{animation:none}}
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <button class="brand" id="homeBtn" title="Naar het startscherm"><i></i>Werftour<span class="back" id="homeBack" hidden>· startscherm</span></button>
+    <div class="apptools" id="appTools" hidden>
+      <span class="kindchip" id="kindChip"></span>
+      <input id="tourTitle" aria-label="Naam van het project" value="">
+      <span class="save" id="saveState"></span>
+      <button class="chipbtn" id="backup" hidden></button>
+      <div class="seg" role="group" aria-label="Modus" id="modeSeg">
+        <button id="modeView" aria-pressed="true">Bekijken</button>
+        <button id="modeEdit" aria-pressed="false">Bewerken</button>
+      </div>
+      <div class="tools">
+        <button class="btn" id="vrBtn">VR-bril</button>
+        <button class="btn primary" id="exportBtn" data-edit title="Eén bestand voor de Quest én je back-up">Exporteren</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="home" id="home" hidden>
+    <div class="home-in">
+      <div class="hero">
+        <h1>Virtuele werfbezoeken, zelf gemaakt</h1>
+        <p>Maak een rondleiding met je eigen 360°-foto's, of loop rond in je eigen BIM-model. Voeg info, vragen, plannen en gesproken uitleg toe, en bekijk het resultaat op pc, gsm of de Meta Quest.</p>
+      </div>
+      <div class="modes">
+        <article class="mode-card">
+          <div class="ill"><svg viewBox="0 0 220 96" aria-hidden="true"><ellipse cx="110" cy="48" rx="70" ry="34" fill="none" stroke="#f07a2a" stroke-width="3"/><ellipse cx="110" cy="48" rx="70" ry="10" fill="none" stroke="#f07a2a" stroke-width="2" stroke-dasharray="5 5"/><ellipse cx="110" cy="48" rx="24" ry="34" fill="none" stroke="#f07a2a" stroke-width="2" stroke-dasharray="5 5"/><circle cx="150" cy="34" r="9" fill="#1f6fb2" stroke="#fff" stroke-width="2"/><text x="150" y="38" text-anchor="middle" fill="#fff" font-size="11" font-weight="700" font-family="sans-serif">i</text><circle cx="78" cy="58" r="9" fill="#8a4fbf" stroke="#fff" stroke-width="2"/><text x="78" y="62" text-anchor="middle" fill="#fff" font-size="11" font-weight="700" font-family="sans-serif">?</text></svg></div>
+          <h2>360°-rondleiding</h2>
+          <p>Je eigen 360°-foto's van een werf of bedrijf, met icoontjes en een begeleide rondleiding.</p>
+          <ul><li>foto's uit Insta360 Studio toevoegen</li><li>info, vragen, audio, video, plannen en links</li><li>rondleiding met gesproken uitleg</li></ul>
+          <div class="row"><button class="btn primary" id="newTour">Nieuwe rondleiding</button><button class="btn" id="demoTour">Demo bekijken</button></div>
+        </article>
+        <article class="mode-card">
+          <div class="ill"><svg viewBox="0 0 220 96" aria-hidden="true"><ellipse cx="110" cy="48" rx="70" ry="34" fill="none" stroke="#f07a2a" stroke-width="3"/><ellipse cx="110" cy="48" rx="70" ry="10" fill="none" stroke="#f07a2a" stroke-width="2" stroke-dasharray="5 5"/><circle cx="110" cy="48" r="17" fill="#e2600c" stroke="#fff" stroke-width="2.5"/><path d="M104 39 L120 48 L104 57 Z" fill="#fff"/><rect x="60" y="88" width="100" height="4" rx="2" fill="#4a5862"/><rect x="60" y="88" width="42" height="4" rx="2" fill="#f07a2a"/><circle cx="82" cy="90" r="4" fill="#8a4fbf" stroke="#fff" stroke-width="1.5"/></svg></div>
+          <h2>360°-video</h2>
+          <p>Een begeleid werf- of bedrijfsbezoek op video, met icoontjes en vragen die op het juiste moment verschijnen.</p>
+          <ul><li>video's uit Insta360 Studio (mp4)</li><li>icoontjes verschijnen op een gekozen tijdstip</li><li>vragen pauzeren de video</li></ul>
+          <div class="row"><button class="btn primary" id="newVideo">Nieuwe 360°-video</button><button class="btn" id="demoVideo">Demo bekijken</button></div>
+        </article>
+        <article class="mode-card">
+          <div class="ill"><svg viewBox="0 0 220 96" aria-hidden="true"><g fill="none" stroke="#f07a2a" stroke-width="2.5"><path d="M60 72 L110 86 L160 72 L160 34 L110 20 L60 34 Z"/><path d="M60 34 L110 48 L160 34 M110 48 L110 86"/></g><g stroke="#9fb0bb" stroke-width="1.5"><path d="M74 38 L74 76 M88 42 L88 80 M124 44 L124 82 M138 40 L138 78"/></g><circle cx="128" cy="30" r="9" fill="#1f6fb2" stroke="#fff" stroke-width="2"/><text x="128" y="34" text-anchor="middle" fill="#fff" font-size="11" font-weight="700" font-family="sans-serif">i</text></svg></div>
+          <h2>BIM-model</h2>
+          <p>Een IFC-export uit Revit om op ware schaal in rond te lopen, op pc of in VR.</p>
+          <ul><li>IFC 2x3 of IFC4, omgezet in je browser</li><li>klik op bouwdelen voor de BIM-gegevens</li><li>info en vragen op bouwdelen zetten</li></ul>
+          <div class="row"><button class="btn primary" id="newBim">Nieuw BIM-project</button><button class="btn" id="demoBim">Demo bekijken</button></div>
+        </article>
+      </div>
+      <section class="projects">
+        <div class="ph"><h2>Mijn projecten</h2><button class="btn" id="openFileBtn">Bestand openen…</button></div>
+        <p class="hint">Je projecten worden automatisch in deze browser bewaard. Exporteer regelmatig: dat bestand is je back-up, je kan het op de Quest zetten en je kan het hier opnieuw openen om verder te werken.</p>
+        <div class="plist" id="projList"></div>
+        <div class="drophint">Sleep hier een geëxporteerd Werftour-bestand (.html of .zip), 360°-foto's, 360°-video's of een IFC-bestand naartoe.</div>
+      </section>
+    </div>
+  </div>
+
+  <main id="main" hidden>
+    <aside id="side">
+      <section class="sec" id="startSec" hidden>
+        <h2>Aan de slag <button class="btn ghost small" id="hideStart">verbergen</button></h2>
+        <ol class="checklist" id="checklist"></ol>
+      </section>
+      <section class="sec" id="guideSec">
+        <h2><span id="guideHead">Rondleiding</span> <span class="coord" id="stepCount"></span></h2>
+        <button class="btn primary" id="guideStartBtn">▶ Start de rondleiding</button>
+        <p class="hint" id="guideHint"></p>
+        <div class="hs-list" id="stepList"></div>
+        <div class="col" data-edit>
+          <button class="btn small" id="addStep">+ Huidig beeld als stap</button>
+          <label class="chk"><input type="checkbox" id="optTts"> Tekst voorlezen als er geen opname is</label>
+          <label class="chk"><input type="checkbox" id="optAuto"> Automatisch naar de volgende stap</label>
+          <label class="chk"><input type="checkbox" id="optStart"> Rondleiding aanbieden bij het openen</label>
+        </div>
+      </section>
+      <section class="sec" id="scenesSec">
+        <h2><span id="scenesHead">Standpunten</span> <span class="coord" id="sceneCount"></span></h2>
+        <div class="scenes" id="sceneList"></div>
+        <div class="row" data-edit id="addRow"></div>
+      </section>
+      <section class="sec" id="sceneProps" data-edit hidden>
+        <h2 id="propsHead">Dit standpunt</h2>
+        <label class="f">Naam<input id="sceneName"></label>
+        <label class="f">Korte uitleg<textarea id="sceneDesc" rows="2"></textarea></label>
+        <div class="row">
+          <button class="btn small" id="setStartView">Huidig beeld als startbeeld</button>
+          <button class="btn small" id="setStartScene">Start hier</button>
+          <button class="btn small" id="sceneUp" aria-label="Omhoog">↑</button>
+          <button class="btn small" id="sceneDown" aria-label="Omlaag">↓</button>
+          <span id="delSceneWrap"></span>
+        </div>
+      </section>
+      <section class="sec" id="hsSec">
+        <h2>Icoontjes <span class="coord" id="hsCount"></span></h2>
+        <p class="hint" id="hsHint"></p>
+        <div class="hs-list" id="hsList"></div>
+      </section>
+      <section class="sec" id="hsEditor" hidden>
+        <h2>Icoontje bewerken <span class="coord" id="hsCoord"></span></h2>
+        <div class="typegrid" id="typeGrid"></div>
+        <label class="f">Titel<input id="hsTitle"></label>
+        <div id="fTime" class="col">
+          <div class="row" style="align-items:flex-end">
+            <label class="f" style="flex:1;min-width:70px">Zichtbaar vanaf<input id="hsT0" placeholder="m:ss"></label><button class="btn small" id="hsT0Now" title="Huidig tijdstip van de video">nu</button>
+            <label class="f" style="flex:1;min-width:70px">tot<input id="hsT1" placeholder="m:ss"></label><button class="btn small" id="hsT1Now" title="Huidig tijdstip van de video">nu</button>
+          </div>
+          <label class="chk"><input type="checkbox" id="hsPause"> Pauzeer de video en open dit icoontje</label>
+        </div>
+        <div id="fText" class="col"><label class="f"><span id="hsTextLbl">Tekst</span><textarea id="hsText" rows="4"></textarea></label></div>
+        <div id="fImg" class="col"><div class="row"><button class="btn small" id="hsImgBtn">Foto of plan toevoegen</button><button class="btn small" id="hsImgDel" hidden>Foto weg</button><input type="file" id="hsImgFile" accept="image/*"></div><img id="hsImgPrev" class="prev" alt="Voorbeeld van de afbeelding" hidden></div>
+        <div id="fLink" class="col"><label class="f">Ga naar standpunt<select id="hsTarget"></select></label></div>
+        <div id="fQuiz" class="col">
+          <label class="f">Vraag<textarea id="hsQ" rows="2"></textarea></label>
+          <label class="f">Antwoord A<input id="hsO0"></label>
+          <label class="f">Antwoord B<input id="hsO1"></label>
+          <label class="f">Antwoord C<input id="hsO2"></label>
+          <label class="f">Juiste antwoord<select id="hsCorrect"><option value="0">A</option><option value="1">B</option><option value="2">C</option></select></label>
+          <label class="f">Uitleg na het antwoorden<textarea id="hsExpl" rows="2"></textarea></label>
+        </div>
+        <div id="fMedia" class="col"><p class="hint" id="hsMediaState"></p><div class="row"><button class="btn small" id="hsMediaBtn">Bestand kiezen</button><button class="btn small" id="hsRec">● Opnemen</button><span id="hsMediaDelWrap"></span><input type="file" id="hsMediaFile"></div></div>
+        <div id="fWeb" class="col"><label class="f">Webadres<input id="hsUrl" type="url" placeholder="https://"></label></div>
+        <div class="row"><button class="btn small" id="hsMove">Verplaats</button><span id="delHsWrap"></span></div>
+      </section>
+      <section class="sec" id="stepEditor" hidden>
+        <h2>Stap bewerken <span class="coord" id="stepNo"></span></h2>
+        <label class="f">Titel<input id="stTitle"></label>
+        <label class="f">Gesproken tekst (ook ondertitel)<textarea id="stText" rows="4"></textarea></label>
+        <label class="f">Wijs naar icoontje<select id="stHs"></select></label>
+        <label class="chk"><input type="checkbox" id="stOpen"> Open dat icoontje automatisch</label>
+        <p class="hint" id="stAudioState"></p>
+        <div class="row"><button class="btn small" id="stRec">● Opnemen</button><button class="btn small" id="stAudioBtn">Audiobestand kiezen</button><button class="btn small" id="stListen">▶ Beluister</button><span id="stAudioDelWrap"></span><input type="file" id="stAudioFile" accept="audio/*"></div>
+        <div class="row"><button class="btn small" id="stRecapture">Huidig beeld gebruiken</button><button class="btn small" id="stUp" aria-label="Stap omhoog">↑</button><button class="btn small" id="stDown" aria-label="Stap omlaag">↓</button><button class="btn small" id="stPreview">Bekijk deze stap</button><span id="stDelWrap"></span></div>
+      </section>
+      <div class="foot"><span id="projSize"></span><span id="credits" hidden>Demobeelden: Poly Haven (CC0), via de three.js-voorbeelden. Demomodel: IFC-testbestand van web-ifc (That Open Company).</span></div>
+    </aside>
+    <div class="stage" id="stage">
+      <canvas id="gl"></canvas>
+      <div id="markers"></div>
+      <div class="hud"><div class="name" id="hudName"></div><div class="meta" id="hudMeta"></div><div class="score" id="hudScore" hidden></div></div>
+      <div class="seg viewseg" id="viewSeg" role="group" aria-label="Weergave" hidden>
+        <button id="vWalk" aria-pressed="false">Rondlopen</button>
+        <button id="vOrbit" aria-pressed="true">Overzicht</button>
+      </div>
+      <div class="bim" id="bim" hidden><span class="ty" id="bimType"></span><b id="bimName"></b><span id="bimObj"></span><span class="gid" id="bimGid"></span><button id="bimClose">Sluiten</button></div>
+      <div class="pad" id="pad" hidden>
+        <button class="up" data-k="KeyW" aria-label="Vooruit">▲</button>
+        <button data-k="ArrowLeft" aria-label="Draai links">↺</button>
+        <button data-k="KeyS" aria-label="Achteruit">▼</button>
+        <button data-k="ArrowRight" aria-label="Draai rechts">↻</button>
+      </div>
+      <div class="editbar" id="editbar" hidden></div>
+      <button class="gstart" id="gStart" hidden></button>
+      <div class="garrow" id="gArrow" hidden><svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="21" fill="#f07a2a"/><path d="M14 23h16M24 15l8 8-8 8" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Kijk hierheen</span></div>
+      <div class="gbar" id="gBar" hidden>
+        <div class="gtop"><span class="gstep" id="gStep"></span><b id="gTitle"></b><button id="gClose" aria-label="Rondleiding stoppen">✕</button></div>
+        <p id="gText"></p>
+        <div class="gctl"><button id="gPrev">◀ Vorige</button><button id="gPlay"></button><button id="gNext" class="primary"></button><label><input type="checkbox" id="gAuto"> automatisch verder</label></div>
+        <div class="gprog"><i id="gProg"></i></div>
+      </div>
+      <div class="vbar" id="vbar" hidden>
+        <button class="vbtn main" id="vPlay" aria-label="Afspelen">▶</button>
+        <button class="vbtn" id="vBack" aria-label="10 seconden terug">↺ 10 s</button>
+        <span class="vtime" id="vTime">0:00 / 0:00</span>
+        <div class="vtrack"><input type="range" id="vSeek" min="0" max="1" step="0.1" value="0" aria-label="Tijdlijn"><div class="vticks" id="vTicks"></div></div>
+        <span class="vpart" id="vPart"></span>
+        <button class="vbtn" id="vMute">Dempen</button>
+        <button class="vbtn" id="vNext" hidden>Volgend deel ▶</button>
+      </div>
+      <button class="vbig" id="vBig" hidden aria-label="Video afspelen">▶</button>
+      <div class="empty" id="empty" hidden></div>
+      <div class="pin" id="pin" hidden></div>
+      <div class="picker" id="picker" hidden></div>
+      <div class="card" id="card" hidden><div id="cardBody"></div></div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast" hidden></div>
+<input type="file" id="sceneFile" accept="image/*" multiple>
+<input type="file" id="ifcFile" accept=".ifc">
+<input type="file" id="videoFile" accept="video/mp4,video/webm,video/quicktime,video/*" multiple>
+<input type="file" id="projFile" accept=".html,.htm,.json,.zip,text/html,application/json,application/zip">
+
+<script type="application/json" id="tour-data">null</script>
+
+<script type="application/json" id="demo-tour">
+{"demo":true,"kind":"tour","title":"Demo-rondleiding: bruggen en grondwerken","start":"brug","guideAutostart":true,"guideAuto":true,"tts":true,"route":[
+{"id":"r1","scene":"brug","view":{"yaw":0,"pitch":8},"title":"Welkom op de voetgangersbrug","text":"Welkom bij deze virtuele rondleiding. We staan midden op een voetgangersbrug boven een autosnelweg. Kijk gerust even rond. Klik daarna op Volgende, of wacht tot de rondleiding vanzelf verdergaat."},
+{"id":"r2","scene":"brug","view":{"yaw":2,"pitch":30},"hotspot":"h1","title":"Bogen en hangers","text":"Kijk omhoog. De twee schuine stalen bogen dragen het brugdek via dunne hangers. De hangers werken op trek, de bogen brengen de last als druk naar de landhoofden."},
+{"id":"r3","scene":"brug","view":{"yaw":84,"pitch":18},"hotspot":"h3","title":"Pyloon en verankering","text":"Rechts komen de bogen samen in de pyloon. Daar moet de horizontale component van de boogkracht opgevangen worden door de fundering."},
+{"id":"r4","scene":"brug","view":{"yaw":25,"pitch":10},"hotspot":"h2","open":true,"title":"Test jezelf","text":"Tijd voor een korte vraag. Welke kracht werkt hoofdzakelijk in de stalen bogen? Kies je antwoord in het venster."},
+{"id":"r5","scene":"grond","view":{"yaw":-8,"pitch":-32},"hotspot":"g1","title":"Grondwerken","text":"We zijn nu op een terrein in uitvoering. De bandensporen tonen waar zware machines gereden hebben. Deze losse toplaag moet nog verdicht worden voor er een fundering op kan komen."},
+{"id":"r6","scene":"grond","view":{"yaw":130,"pitch":0},"hotspot":"g2","title":"Gronddepot","text":"Achteraan ligt een gronddepot. Uitgegraven grond wordt hier tijdelijk opgeslagen. Denk aan de regels voor grondverzet: is er een technisch verslag?"},
+{"id":"r7","scene":"venetie","view":{"yaw":-10,"pitch":-30},"hotspot":"v2","title":"Een boog in metselwerk","text":"Tot slot een gemetselde brug in Venetië. Metselwerk kan nauwelijks trek opnemen. De boogvorm zorgt ervoor dat de belasting als druk naar de oevers gaat. Dit is het einde van de rondleiding."}
+],"scenes":[
+{"id":"brug","kind":"pano","name":"Voetgangersbrug over de snelweg","description":"Stalen boogbrug met hangers boven een autosnelweg.","image":"pano/pedestrian_overpass.jpg","yaw":0,"pitch":5,"hotspots":[
+ {"id":"h1","type":"info","yaw":2,"pitch":34,"title":"Bogen en hangers","text":"De twee schuine stalen bogen dragen het brugdek via dunne hangers (tuien).\n\nHet dek hangt aan de hangers, die op trek werken. De bogen brengen de last als druk naar de landhoofden."},
+ {"id":"h2","type":"quiz","yaw":28,"pitch":14,"title":"Vraag: krachtswerking","question":"Welke kracht werkt hoofdzakelijk in de stalen bogen van deze brug?","options":["Druk","Trek","Torsie"],"correct":0,"explain":"Een boog brengt verticale last als drukkracht naar de opleggingen. De hangers daarentegen werken op trek."},
+ {"id":"h3","type":"info","yaw":88,"pitch":24,"title":"Pyloon en verankering","text":"Hier komen de bogen samen in een pyloon. Let op hoe de horizontale component van de boogkracht in de fundering wordt opgevangen."},
+ {"id":"h4","type":"info","yaw":-62,"pitch":-36,"title":"Leuning en randafwerking","text":"Leuning met staande stijlen en horizontale kabels. Controleer: hoogte minstens 1,0 m en geen opstapmogelijkheid voor kinderen."},
+ {"id":"h8","type":"web","yaw":-30,"pitch":-8,"title":"Meer over boogbruggen","text":"Achtergrond over de krachtswerking in boogbruggen.","url":"https://nl.wikipedia.org/wiki/Boogbrug"},
+ {"id":"h5","type":"link","yaw":-88,"pitch":-4,"title":"Naar de grondwerken","target":"grond"},
+ {"id":"h6","type":"link","yaw":92,"pitch":-8,"title":"Naar de brug in Venetië","target":"venetie"}]},
+{"id":"grond","kind":"pano","name":"Grondwerken: geëgaliseerd terrein","description":"Uitgegraven en geëgaliseerde zone met gronddepots.","image":"pano/quarry_01.jpg","yaw":0,"pitch":-10,"hotspots":[
+ {"id":"g1","type":"info","yaw":-8,"pitch":-40,"title":"Bandensporen en verdichting","text":"De sporen tonen waar zware machines hebben gereden. Een losse toplaag moet nog verdicht worden voor er een fundering op komt."},
+ {"id":"g2","type":"info","yaw":136,"pitch":3,"title":"Gronddepot","text":"Tijdelijke opslag van uitgegraven grond. Denk aan de grondverzetregeling: is er een technisch verslag en een bodembeheerrapport?"},
+ {"id":"g3","type":"quiz","yaw":40,"pitch":-12,"title":"Vraag: draagkracht","question":"Met welke proef controleer je op de werf de draagkracht van een verdichte laag?","options":["Plaatproef","Slumpproef","Proctorproef"],"correct":0,"explain":"De plaatproef meet de samendrukbaarheidsmodulus (M1/M2) ter plaatse. De Proctorproef bepaalt in het labo het optimale watergehalte, de slumpproef gaat over beton."},
+ {"id":"g4","type":"link","yaw":180,"pitch":-6,"title":"Terug naar de voetgangersbrug","target":"brug"}]},
+{"id":"venetie","kind":"pano","name":"Gemetselde boogbrug, Venetië","description":"Stenen boogbrug met treden over een kanaal.","image":"pano/san_giuseppe_bridge.jpg","yaw":-30,"pitch":0,"hotspots":[
+ {"id":"v1","type":"info","yaw":-64,"pitch":-22,"title":"Kanaal en kaaimuren","text":"De kaaimuren staan op houten palen in de slappe lagunebodem, een klassieke paalfundering."},
+ {"id":"v2","type":"quiz","yaw":0,"pitch":-38,"title":"Vraag: metselwerk","question":"Waarom is een boogvorm geschikt voor een brug in metselwerk?","options":["De boog zet de belasting om in druk, en metselwerk is sterk in druk","Een boog is lichter dan een balk","Metselwerk kan grote trekspanningen opnemen"],"correct":0,"explain":"Metselwerk kan nauwelijks trek opnemen. Een goed gevormde boog houdt de drukkrachtlijn binnen de doorsnede."},
+ {"id":"v3","type":"info","yaw":-158,"pitch":-24,"title":"Treden en helling","text":"De brug overbrugt het hoogteverschil met treden. Vergelijk met een toegankelijke helling: maximaal 5 % over lange afstand."},
+ {"id":"v4","type":"link","yaw":150,"pitch":-10,"title":"Terug naar de voetgangersbrug","target":"brug"}]}
+]}
+</script>
+
+<script type="application/json" id="demo-video">
+{"demo":true,"kind":"video","title":"Demo 360°-video: van brug naar werf","start":"vid1","autoNext":true,"guideAutostart":false,"route":[],"scenes":[
+{"id":"vid1","kind":"video","name":"Deel 1: brug en grondwerken","description":"Korte demovideo (24 s) gemaakt uit twee 360°-foto's.","video":"video/demo-360.mp4","duration":24,"yaw":0,"pitch":8,"hotspots":[
+ {"id":"t1","type":"info","yaw":2,"pitch":30,"t0":1,"t1":10,"title":"Bogen en hangers","text":"De schuine stalen bogen dragen het brugdek via dunne hangers. De hangers werken op trek, de bogen op druk."},
+ {"id":"t2","type":"quiz","yaw":26,"pitch":12,"t0":6,"t1":11,"pause":true,"title":"Vraag: krachtswerking","question":"Welke kracht werkt hoofdzakelijk in de stalen bogen?","options":["Druk","Trek","Torsie"],"correct":0,"explain":"Een boog brengt verticale last als drukkracht naar de opleggingen. De hangers werken op trek."},
+ {"id":"t3","type":"info","yaw":-8,"pitch":-35,"t0":14,"t1":23,"title":"Bandensporen en verdichting","text":"Hier is zwaar materieel gepasseerd. De losse toplaag moet nog verdicht worden voor er een fundering op komt."},
+ {"id":"t4","type":"quiz","yaw":40,"pitch":-12,"t0":17,"t1":23.5,"pause":true,"title":"Vraag: draagkracht","question":"Met welke proef controleer je op de werf de draagkracht van een verdichte laag?","options":["Plaatproef","Slumpproef","Proctorproef"],"correct":0,"explain":"De plaatproef meet de samendrukbaarheidsmodulus ter plaatse. De Proctorproef gebeurt in het labo, de slumpproef gaat over beton."}]}
+]}
+</script>
+
+<script type="application/json" id="demo-bim">
+{"demo":true,"kind":"bim","title":"Demo BIM-model: voorbeeldgebouw","start":"woning","guideAutostart":false,"guideAuto":true,"tts":true,"route":[
+{"id":"b1","scene":"woning","view":{"mode":"orbit","yaw":35,"pitch":28,"dist":30,"target":[0,2.5,0]},"title":"Het gebouw van buiten","text":"Dit is een Revit-export in IFC, rechtstreeks in de browser omgezet. Draai rond het gebouw om de opbouw te zien."},
+{"id":"b2","scene":"woning","view":{"mode":"walk","pos":[2,0.6,2.5],"yaw":20,"pitch":32},"hotspot":"w3","title":"Binnen in het model","text":"We staan nu binnen op ware schaal. Boven je zie je de stalen dakliggers, die rusten op kolommen langs de gevel. Klik op een bouwdeel voor de BIM-gegevens."}
+],"scenes":[
+{"id":"woning","kind":"model","name":"Voorbeeldgebouw (IFC 2x3)","description":"Revit-export, omgezet in de browser.","model":"models/voorbeeld.gltf.json","yaw":0,"pitch":0,"hotspots":[
+ {"id":"w1","type":"info","pos":[0,2.44,-4.45],"title":"Betonwand 150 mm","text":"Klik op een bouwdeel om de IFC-gegevens te zien: type (IfcWallStandardCase), naam uit Revit en de GlobalId.\n\nOpdracht: zoek een kolom en een ligger, en noteer hun IFC-type."},
+ {"id":"w2","type":"quiz","pos":[-6,1.9,-4.45],"title":"Vraag: BIM","question":"Wat is de GlobalId van een IFC-element?","options":["Een unieke, blijvende code waarmee het element in elk programma herkenbaar blijft","Het artikelnummer van de leverancier","De verdieping waarop het element staat"],"correct":0,"explain":"De GlobalId (GUID) blijft gelijk bij elke export. Zo kunnen planningen, meetstaten en clashrapporten naar hetzelfde element verwijzen."},
+ {"id":"w3","type":"info","pos":[3,4.7,0],"title":"Dakstructuur","text":"Stalen liggers dragen het dak. Kijk hoe ze op de kolommen langs de gevel aansluiten."}]}
+]}
+</script>
+
+<script type="importmap" data-app>{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/src/index.js"}}</script>
+<script type="module" data-app>
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
+import { computeBoundsTree, acceleratedRaycast } from "three-mesh-bvh";
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
+
+const PRISTINE = document.documentElement.outerHTML;
+const WEBIFC = "https://cdn.jsdelivr.net/npm/web-ifc@0.0.77/";
+const $ = s => document.querySelector(s);
+const deg = THREE.MathUtils.degToRad, rad = THREE.MathUtils.radToDeg, clamp = THREE.MathUtils.clamp;
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
+const EYE = 1.65;
+const TYPES = {
+  info: { icon: "i", label: "Info", desc: "Tekst, foto of plan", color: "#1f6fb2" },
+  quiz: { icon: "?", label: "Vraag", desc: "Meerkeuzevraag", color: "#8a4fbf" },
+  link: { icon: "→", label: "Ga naar", desc: "Naar ander standpunt", color: "#2f7d4a" },
+  audio: { icon: "♪", label: "Audio", desc: "Geluidsfragment", color: "#0f7c80" },
+  video: { icon: "▶", label: "Video", desc: "Videofragment", color: "#b8432f" },
+  doc: { icon: "≡", label: "Document", desc: "PDF, bv. een plan", color: "#5b6670" },
+  web: { icon: "↗", label: "Website", desc: "Link naar een site", color: "#2a5db0" }
+};
+const MEDIA = {
+  audio: { accept: "audio/*", max: 15, what: "audiobestand" },
+  video: { accept: "video/mp4,video/webm,video/*", max: 60, what: "video (mp4)" },
+  doc: { accept: "application/pdf,.pdf", max: 25, what: "PDF" }
+};
+
+/* ---------- state ---------- */
+let tour = null, viewerOnly = false, screen = "home";
+let mode = "view", cur = null, selHs = null, moving = false, view = "pano";
+let answers = {}, projSize = 0;
+const scene = id => tour.scenes.find(s => s.id === id);
+const isModel = s => s && s.kind === "model";
+const isBim = () => tour?.kind === "bim";
+const isVideo = s => !!s && s.kind === "video";
+const isVid = () => tour?.kind === "video";
+const kindLabel = k => k === "bim" ? "BIM-model" : k === "video" ? "360°-video" : "360°-rondleiding";
+
+/* ---------- project library (IndexedDB) ---------- */
+const lib = {
+  db: null,
+  open() {
+    if (this.db) return Promise.resolve(this.db);
+    return new Promise((ok, no) => {
+      const r = indexedDB.open("werftour", 3);
+      r.onupgradeneeded = () => { const d = r.result; for (const n of ["kv", "meta", "data", "blobs"]) if (!d.objectStoreNames.contains(n)) d.createObjectStore(n); };
+      r.onsuccess = () => ok(this.db = r.result); r.onerror = () => no(r.error);
+    });
+  },
+  async get(store, key) { try { const db = await this.open(); return await new Promise(ok => { const q = db.transaction(store).objectStore(store).get(key); q.onsuccess = () => ok(q.result); q.onerror = () => ok(null); }); } catch (e) { return null; } },
+  async put(store, key, val) { const db = await this.open(); return new Promise((ok, no) => { const t = db.transaction(store, "readwrite"); t.objectStore(store).put(val, key); t.oncomplete = ok; t.onerror = () => no(t.error); t.onabort = () => no(t.error); }); },
+  async del(store, key) { try { const db = await this.open(); return await new Promise(ok => { const t = db.transaction(store, "readwrite"); t.objectStore(store).delete(key); t.oncomplete = ok; t.onerror = ok; }); } catch (e) {} },
+  async all(store) { try { const db = await this.open(); return await new Promise(ok => { const q = db.transaction(store).objectStore(store).getAll(); q.onsuccess = () => ok(q.result || []); q.onerror = () => ok([]); }); } catch (e) { return []; } }
+};
+let saveT = 0, saveTimeStr = "";
+function setSaveState(st) {
+  const el = $("#saveState");
+  if (viewerOnly || !tour) { el.textContent = ""; return; }
+  if (!tour.id) { el.textContent = tour.demo ? "Demo · wordt een kopie zodra je iets wijzigt" : ""; return; }
+  el.textContent = { pending: "Wijzigingen…", saving: "Bewaren…", ok: `✓ Bewaard ${saveTimeStr}`, err: "Bewaren mislukt: exporteer je werk" }[st] || "";
+  el.style.color = st === "err" ? "var(--bad)" : "";
+  renderBackup();
+}
+async function saveNow() {
+  clearTimeout(saveT); saveT = 0;
+  if (viewerOnly || !tour) return;
+  if (!tour.id) {
+    if (mode !== "edit") return;
+    tour.id = uid();
+    if (tour.demo) { tour.title = (tour.title || "Demo") + " (kopie)"; delete tour.demo; }
+    render();
+  }
+  tour.changedAt = Date.now();
+  setSaveState("saving");
+  try {
+    const data = JSON.stringify(tour); projSize = data.length;
+    await lib.put("data", tour.id, data);
+    await lib.put("meta", tour.id, { id: tour.id, name: tour.title || "Zonder naam", kind: tour.kind, updated: tour.changedAt, size: data.length, videoSize: tour.scenes.reduce((a, s) => a + (s.videoSize || 0), 0), thumb: tour.scenes.find(s => s.thumb)?.thumb || "", scenes: tour.scenes.length });
+    saveTimeStr = new Date().toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit" });
+    setSaveState("ok"); renderSize();
+  } catch (e) { console.error(e); setSaveState("err"); }
+}
+function save() { if (viewerOnly || !tour) return; if (!tour.id && mode !== "edit") return; clearTimeout(saveT); setSaveState("pending"); saveT = setTimeout(saveNow, 900); }
+function renderBackup() {
+  const el = $("#backup");
+  const stale = tour && tour.id && !viewerOnly && mode === "edit" && tour.scenes.length && (!tour.lastExport || (tour.changedAt || 0) - tour.lastExport > 10 * 60e3);
+  el.hidden = !stale;
+  el.textContent = tour?.lastExport ? "Back-up verouderd · exporteer" : "Nog geen back-up · exporteer";
+}
+$("#backup").onclick = () => exportTour();
+const fmtMB = n => (n / 1048576).toFixed(n > 10485760 ? 0 : 1).replace(".", ",") + " MB";
+function renderSize() {
+  const el = $("#projSize");
+  if (!tour || viewerOnly || tour.demo) { el.textContent = ""; return; }
+  const vs = tour.scenes.reduce((a, s) => a + (s.videoSize || 0), 0);
+  el.textContent = `Projectgrootte ≈ ${fmtMB(projSize * 0.75)}` + (vs ? ` + video's ${fmtMB(vs)}` : "") + (projSize > 160e6 ? " · groot: de Quest kan traag laden" : "");
+}
+
+/* ---------- three ---------- */
+const canvas = $("#gl"), stage = $("#stage");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.xr.enabled = true;
+renderer.xr.setReferenceSpaceType("local-floor");
+const world = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, 1, 0.05, 1100);
+camera.rotation.order = "YXZ";
+const rig = new THREE.Group(); rig.add(camera); world.add(rig);
+const sphereGeo = new THREE.SphereGeometry(500, 96, 64); sphereGeo.scale(-1, 1, 1);
+const sphereMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const sphere = new THREE.Mesh(sphereGeo, sphereMat); sphere.rotation.y = -Math.PI / 2; world.add(sphere);
+world.add(new THREE.HemisphereLight(0xeef4ff, 0x8a8170, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(30, 60, 20); world.add(sun);
+const modelRoot = new THREE.Group(); world.add(modelRoot);
+const SKY = new THREE.Color(0xc9d6df), DARK = new THREE.Color(0x11171b);
+const texLoader = new THREE.TextureLoader(), gltfLoader = new GLTFLoader();
+const texCache = new Map(), modelCache = {};
+let yaw = 0, pitch = 0, fov = 75;
+const player = new THREE.Vector3();
+const orbit = { yaw: 35, pitch: 30, dist: 30, target: new THREE.Vector3() };
+let M = null;
+
+const dirFrom = (y, p) => new THREE.Vector3(Math.sin(deg(y)) * Math.cos(deg(p)), Math.sin(deg(p)), -Math.cos(deg(y)) * Math.cos(deg(p)));
+const yawPitchOf = v => { v = v.clone().normalize(); return { yaw: rad(Math.atan2(v.x, -v.z)), pitch: rad(Math.asin(v.y)) }; };
+const fmt = n => (n >= 0 ? "+" : "−") + Math.abs(n).toFixed(2).replace(".", ",");
+
+function resize() {
+  const r = stage.getBoundingClientRect();
+  if (!r.width || renderer.xr.isPresenting) return;
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+
+function loadTex(s) {
+  const key = s.id + ":" + s.image.length + ":" + s.image.slice(-24);
+  if (texCache.has(key)) return Promise.resolve(texCache.get(key));
+  return new Promise((ok, fail) => texLoader.load(s.image, t => {
+    t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+    if (texCache.size > 6) { const [k, old] = texCache.entries().next().value; old.dispose(); texCache.delete(k); }
+    texCache.set(key, t); ok(t);
+  }, undefined, fail));
+}
+async function loadModel(s) {
+  if (modelCache[s.id]?.src === s.model) return modelCache[s.id];
+  const gltf = await gltfLoader.loadAsync(s.model);
+  const root = gltf.scene; let meta = {};
+  root.traverse(o => { if (o.userData?.meta) meta = o.userData.meta; });
+  const meshes = [];
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    o.material.side = THREE.DoubleSide;
+    const key = Object.keys(o.geometry.attributes).find(k => /eid$/i.test(k));
+    o.userData.eidAttr = key ? o.geometry.attributes[key] : null;
+    o.geometry.computeBoundsTree(); meshes.push(o);
+  });
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  const r = Math.max(size.x, size.z) * 1.5 + 30;
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(r, 64).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x9aa58f }));
+  ground.position.y = box.min.y - 0.01; ground.geometry.computeBoundsTree();
+  const grid = new THREE.GridHelper(r * 2, Math.round(r * 2 / 5), 0x7d8873, 0x8b9681); grid.position.y = box.min.y;
+  const group = new THREE.Group(); group.add(ground, grid, root);
+  const m = { src: s.model, group, root, meshes, colliders: [...meshes, ground], meta, box, ground };
+  modelCache[s.id] = m; return m;
+}
+
+/* ---------- navigation ---------- */
+function clearStage() {
+  stopVideo();
+  cur = null; M = null; modelRoot.clear(); sphere.visible = false; world.background = DARK; xrGroup.clear(); view = "pano";
+}
+async function go(id, keepView) {
+  const s = scene(id); if (!s) return;
+  if (!isVideo(s)) stopVideo();
+  cur = s; selHs = null; moving = false; hideBim(); hidePicker();
+  if (isModel(s)) {
+    sphere.visible = false; world.background = SKY; modelRoot.clear(); M = null;
+    showLoading("Model laden…");
+    try {
+      M = await loadModel(s); if (cur !== s) return; modelRoot.add(M.group);
+      const c = M.box.getCenter(new THREE.Vector3()), sz = M.box.getSize(new THREE.Vector3());
+      orbit.target.copy(c); orbit.dist = Math.max(sz.x, sz.y, sz.z) * 1.05 + 3;
+      if (!keepView) {
+        if (s.spawn) { player.fromArray(s.spawn); yaw = s.yaw || 0; pitch = s.pitch || 0; setView("walk"); }
+        else setView("orbit");
+      } else if (view === "pano") setView("orbit");
+      if (!s.thumb) setTimeout(() => makeThumb(s), 400);
+    } catch (e) { toast("Dit model kon niet geladen worden."); console.error(e); }
+    closeCard();
+  } else {
+    M = null; modelRoot.clear(); sphere.visible = true; world.background = null; view = "pano";
+    rig.position.set(0, 0, 0); camera.position.set(0, 0, 0);
+    if (!keepView) { yaw = s.yaw || 0; pitch = s.pitch || 0; }
+    if (isVideo(s)) { try { await loadVideoScene(s); } catch (e) { toast("Deze video kon niet geladen worden: " + e.message); } }
+    else { try { sphereMat.map = await loadTex(s); sphereMat.needsUpdate = true; } catch (e) { toast("Deze foto kon niet geladen worden."); } }
+  }
+  if (renderer.xr.isPresenting && isModel(s) && view === "orbit") startWalk();
+  buildXRMarkers(); render();
+}
+function setView(v) { view = v; if (v === "walk") camera.position.set(0, EYE, 0); render(); }
+function startWalk() {
+  if (!M) return;
+  if (cur.spawn) { player.fromArray(cur.spawn); yaw = cur.yaw || 0; }
+  else { const c = M.box.getCenter(new THREE.Vector3()); player.set(c.x, M.box.min.y, M.box.max.z + 4); yaw = 0; }
+  pitch = 0; setView("walk");
+}
+function makeThumb(s) {
+  if (cur !== s || renderer.xr.isPresenting) return;
+  renderer.render(world, camera);
+  const c = document.createElement("canvas"); c.width = 160; c.height = 80;
+  const src = renderer.domElement, ar = src.width / src.height;
+  const sw = ar > 2 ? src.height * 2 : src.width, sh = sw / 2;
+  c.getContext("2d").drawImage(src, (src.width - sw) / 2, (src.height - sh) / 2, sw, sh, 0, 0, 160, 80);
+  s.thumb = c.toDataURL("image/jpeg", 0.75); save(); renderSide();
+}
+
+/* ---------- controls ---------- */
+let drag = null;
+const keys = new Set();
+canvas.addEventListener("pointerdown", e => { hidePicker(); drag = { x: e.clientX, y: e.clientY, yaw, pitch, oy: orbit.yaw, op: orbit.pitch, moved: false }; canvas.setPointerCapture(e.pointerId); canvas.style.cursor = "grabbing"; });
+canvas.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+  if (view === "orbit") { orbit.yaw = drag.oy - dx * 0.3; orbit.pitch = clamp(drag.op + dy * 0.3, 3, 88); return; }
+  const k = fov / stage.clientHeight;
+  yaw = drag.yaw - dx * k; pitch = clamp(drag.pitch + dy * k, -88, 88);
+});
+canvas.addEventListener("pointerup", e => { canvas.style.cursor = ""; if (drag && !drag.moved) clickAt(e); drag = null; });
+canvas.addEventListener("dblclick", e => {
+  if (!M || mode === "edit") return;
+  const hit = pick(e, M.colliders); if (!hit) return;
+  const n = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
+  if (Math.abs(n.y) > 0.6) player.copy(hit.point);
+  else { const back = hit.point.clone().addScaledVector(ray.ray.direction, -0.6); player.set(back.x, M.box.max.y, back.z); }
+  if (view === "orbit") { const d = new THREE.Vector3().subVectors(orbit.target, player); yaw = rad(Math.atan2(d.x, -d.z)); pitch = 0; }
+  dropToFloor(true); setView("walk"); hideBim();
+});
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  if (view === "orbit") { orbit.dist = clamp(orbit.dist * (1 + e.deltaY * 0.001), 2, 2000); return; }
+  fov = clamp(fov + e.deltaY * 0.04, 30, 100); camera.fov = fov; camera.updateProjectionMatrix();
+}, { passive: false });
+window.addEventListener("keydown", e => {
+  if (e.target.closest && e.target.closest("input,textarea,select")) return;
+  if (e.key === "Escape") { if (!$("#picker").hidden) { hidePicker(); return; } closeCard(); hideBim(); return; }
+  if (screen !== "app" || !cur) return;
+  if (isVideo(cur) && e.code === "Space") { e.preventDefault(); vid.paused ? playVideo() : vid.pause(); return; }
+  if (view === "pano") {
+    const step = 5;
+    if (e.key === "ArrowLeft") yaw -= step; else if (e.key === "ArrowRight") yaw += step;
+    else if (e.key === "ArrowUp") pitch = Math.min(88, pitch + step); else if (e.key === "ArrowDown") pitch = Math.max(-88, pitch - step);
+    return;
+  }
+  if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "ShiftLeft", "ShiftRight", "KeyQ", "KeyE"].includes(e.code)) {
+    keys.add(e.code); e.preventDefault();
+    if (view === "orbit" && M && /Key[WASD]|Arrow(Up|Down)/.test(e.code)) { const d = new THREE.Vector3().subVectors(camera.position, orbit.target); startWalkAt(orbit.target.x + d.x * 0.6, orbit.target.z + d.z * 0.6); }
+  }
+});
+window.addEventListener("keyup", e => keys.delete(e.code));
+window.addEventListener("blur", () => keys.clear());
+document.querySelectorAll("#pad button").forEach(b => {
+  b.addEventListener("pointerdown", e => { e.preventDefault(); keys.add(b.dataset.k); });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(t => b.addEventListener(t, () => keys.delete(b.dataset.k)));
+});
+function startWalkAt(x, z) { player.set(x, M.box.max.y + 1, z); dropToFloor(true); const d = new THREE.Vector3().subVectors(orbit.target, player); yaw = rad(Math.atan2(d.x, -d.z)); pitch = 0; setView("walk"); }
+$("#vWalk").onclick = () => { if (view !== "walk") startWalk(); };
+$("#vOrbit").onclick = () => setView("orbit");
+
+const ray = new THREE.Raycaster(); ray.firstHitOnly = true;
+function pick(e, objects) {
+  const r = canvas.getBoundingClientRect();
+  const v = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(v, camera); ray.far = Infinity;
+  if (!objects) return yawPitchOf(ray.ray.direction);
+  return ray.intersectObjects(objects, false)[0] || null;
+}
+function clickAt(e) {
+  if (!cur) return;
+  if (mode === "edit") {
+    let p;
+    if (M) { const hit = pick(e, M.colliders); if (!hit) return; const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld); p = { pos: hit.point.clone().addScaledVector(n, 0.15).toArray().map(x => +x.toFixed(3)) }; }
+    else { const q = pick(e); p = { yaw: +q.yaw.toFixed(1), pitch: +q.pitch.toFixed(1) }; }
+    if (moving && selHs) { delete selHs.yaw; delete selHs.pitch; delete selHs.pos; Object.assign(selHs, p); moving = false; save(); buildXRMarkers(); render(); toast("Icoontje verplaatst"); return; }
+    if (isVideo(cur)) vid.pause();
+    showPicker(e, p);
+    return;
+  }
+  if (M) { const hit = pick(e, M.meshes); if (hit) showBim(hit); else hideBim(); }
+}
+
+/* scroll the side panel (not the page) so an editor block is in view */
+function reveal(el) {
+  const a = $("#side"); if (!el || el.hidden) return;
+  const top = el.offsetTop, bottom = top + el.offsetHeight;
+  if (top < a.scrollTop || bottom > a.scrollTop + a.clientHeight) a.scrollTo({ top: Math.max(0, top - 8), behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  window.scrollTo(0, 0);
+}
+/* ---------- placing a new icon ---------- */
+function showPicker(e, p) {
+  const pk = $("#picker"), r = stage.getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  pk.innerHTML = '<p>Wat wil je hier plaatsen?</p><div class="pgrid"></div><div class="row"><button class="btn small" id="pkCancel">Annuleren</button></div>';
+  const others = tour.scenes.filter(s => s !== cur);
+  for (const [k, t] of Object.entries(TYPES)) {
+    const b = document.createElement("button");
+    b.innerHTML = `<span class="ti" style="background:${t.color}">${t.icon}</span><span><b>${t.label}</b><small>${t.desc}</small></span>`;
+    if (k === "link" && !others.length) { b.disabled = true; b.title = "Voeg eerst een tweede standpunt toe"; }
+    b.onclick = () => { hidePicker(); createHotspot(k, p); };
+    pk.querySelector(".pgrid").appendChild(b);
+  }
+  $("#pkCancel").onclick = hidePicker;
+  pk.hidden = false;
+  const w = pk.offsetWidth, h = pk.offsetHeight;
+  pk.style.left = clamp(x + 12, 8, r.width - w - 8) + "px";
+  pk.style.top = clamp(y + 12, 8, r.height - h - 8) + "px";
+  const pin = $("#pin"); pin.style.left = x + "px"; pin.style.top = y + "px"; pin.hidden = false;
+  pk.querySelector(".pgrid button:not(:disabled)").focus();
+}
+function hidePicker() { $("#picker").hidden = true; $("#pin").hidden = true; }
+function createHotspot(type, p) {
+  const h = { id: uid(), type, ...p, title: TYPES[type].label, text: "" };
+  if (type === "quiz") Object.assign(h, { title: "Vraag", question: "", options: ["", "", ""], correct: 0, explain: "" });
+  if (type === "link") { const t = tour.scenes.find(s => s !== cur); h.target = t.id; h.title = "Naar " + t.name; h.autoTitle = true; }
+  if (isVideo(cur)) { const t = +vid.currentTime.toFixed(1), d = vid.duration || cur.duration || t + 8; h.t0 = t; h.t1 = +Math.min(t + 8, d).toFixed(1); if (h.t1 <= h.t0) h.t1 = +(h.t0 + 1).toFixed(1); h.pause = type === "quiz"; }
+  cur.hotspots.push(h); selHs = h; save(); buildXRMarkers(); render();
+  setTimeout(() => {
+    reveal($("#hsEditor"));
+    const f = type === "quiz" ? $("#hsQ") : type === "web" ? $("#hsUrl") : (type === "audio" || type === "video" || type === "doc") ? $("#hsMediaBtn") : $("#hsTitle");
+    f.focus({ preventScroll: true }); if (f.select) f.select();
+  }, 30);
+}
+
+/* ---------- walking ---------- */
+const down = new THREE.Vector3(0, -1, 0), tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
+function dropToFloor(snap, dt = 0) {
+  ray.set(tmp.set(player.x, player.y + 0.75, player.z), down); ray.far = 200;
+  const hit = ray.intersectObjects(M.colliders, false)[0];
+  const fy = hit ? hit.point.y : M.box.min.y;
+  if (snap || fy >= player.y) player.y = fy; else player.y = Math.max(fy, player.y - 7 * dt);
+}
+function blocked(dx, dz) {
+  const len = Math.hypot(dx, dz); if (!len) return false;
+  tmp2.set(dx / len, 0, dz / len); ray.far = len + 0.3;
+  for (const h of [0.8, 1.5]) { ray.set(tmp.set(player.x, player.y + h, player.z), tmp2); if (ray.intersectObjects(M.meshes, false).length) return true; }
+  return false;
+}
+function walk(dt, fwd, strafe, headYaw) {
+  if (!fwd && !strafe) { dropToFloor(false, dt); return; }
+  const sp = (keys.has("ShiftLeft") || keys.has("ShiftRight") ? 3.2 : 1.4) * dt;
+  const sy = Math.sin(deg(headYaw)), cy = Math.cos(deg(headYaw));
+  const dx = (sy * fwd + cy * strafe) * sp, dz = (-cy * fwd + sy * strafe) * sp;
+  if (!blocked(dx, dz)) { player.x += dx; player.z += dz; }
+  else if (!blocked(dx, 0)) player.x += dx;
+  else if (!blocked(0, dz)) player.z += dz;
+  dropToFloor(false, dt);
+}
+
+/* ---------- BIM info ---------- */
+let hl = null;
+function showBim(hit) {
+  const a = hit.object.userData.eidAttr; if (!a || !hit.face) return;
+  const eid = Math.round(a.getX(hit.face.a)); const info = M.meta[eid] || ["Onbekend element", "", "", ""];
+  $("#bimType").textContent = info[0]; $("#bimName").textContent = info[1] || "(geen naam)";
+  $("#bimObj").textContent = info[2] || ""; $("#bimObj").hidden = !info[2];
+  $("#bimGid").textContent = info[3] ? "GlobalId " + info[3] : ""; $("#bim").hidden = false;
+  highlight(eid);
+  if (renderer.xr.isPresenting) showXRText(info[1] || info[0], [info[0], info[2], info[3] ? "GlobalId " + info[3] : ""].filter(Boolean));
+}
+function hideBim() { $("#bim").hidden = true; if (hl) { hl.parent?.remove(hl); hl.geometry.dispose(); hl = null; } }
+$("#bimClose").onclick = hideBim;
+function highlight(eid) {
+  if (hl) { hl.parent?.remove(hl); hl.geometry.dispose(); hl = null; }
+  const pos = [];
+  for (const m of M.meshes) {
+    const a = m.userData.eidAttr; if (!a) continue;
+    const p = m.geometry.attributes.position, idx = m.geometry.index;
+    const n = idx ? idx.count : p.count;
+    for (let i = 0; i < n; i += 3) {
+      const i0 = idx ? idx.getX(i) : i; if (Math.round(a.getX(i0)) !== eid) continue;
+      for (let k = 0; k < 3; k++) { const j = idx ? idx.getX(i + k) : i + k; pos.push(p.getX(j), p.getY(j), p.getZ(j)); }
+    }
+  }
+  if (!pos.length) return;
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  hl = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xf07a2a, transparent: true, opacity: 0.55, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false }));
+  M.root.add(hl);
+}
+
+/* ---------- markers ---------- */
+const markersEl = $("#markers");
+const hsPos = h => h.pos ? tmp.fromArray(h.pos) : tmp.copy(dirFrom(h.yaw, h.pitch)).multiplyScalar(100);
+function renderMarkers() {
+  markersEl.innerHTML = "";
+  if (!cur || screen !== "app") return;
+  const gs = guide.on ? route()[guide.i] : null;
+  for (const h of cur.hotspots) {
+    const t = TYPES[h.type] || TYPES.info;
+    const b = document.createElement("button");
+    b.className = "mk" + (selHs === h ? " sel" : "") + (gs && gs.scene === cur.id && gs.hotspot === h.id ? " focus" : "");
+    b.dataset.id = h.id;
+    const done = h.type === "quiz" && h.id in answers ? (answers[h.id] ? " ✓" : " ✗") : "";
+    b.innerHTML = `<span class="dot">${t.icon}</span><span class="lbl"></span>`;
+    b.querySelector(".dot").style.background = t.color;
+    b.querySelector(".lbl").textContent = (h.title || "") + done;
+    b.setAttribute("aria-label", (h.title || t.label));
+    b.addEventListener("click", ev => { ev.stopPropagation(); hidePicker(); if (mode === "edit") { selHs = h; moving = false; render(); } else activate(h); });
+    markersEl.appendChild(b);
+  }
+}
+function positionMarkers() {
+  if (!cur) return;
+  const w = stage.clientWidth, hgt = stage.clientHeight;
+  for (const el of markersEl.children) {
+    const h = cur.hotspots.find(x => x.id === el.dataset.id); if (!h) continue;
+    const v = hsPos(h).clone().project(camera);
+    const vis = v.z < 1 && v.z > -1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2 && hsVisible(h);
+    el.style.display = vis ? "" : "none";
+    if (vis) { el.style.left = ((v.x + 1) / 2 * w) + "px"; el.style.top = ((1 - v.y) / 2 * hgt) + "px"; }
+  }
+}
+
+/* ---------- opening an icon ---------- */
+function dataUrlToBlob(d) {
+  const [head, b64] = d.split(","); const mime = (head.match(/data:([^;]+)/) || [])[1] || "application/octet-stream";
+  const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return new Blob([u], { type: mime });
+}
+let blobUrls = [];
+function activate(h) {
+  if (h.type === "link") {
+    if (!scene(h.target)) { toast("Dit standpunt bestaat niet meer."); return; }
+    go(h.target).then(() => { if (isVideo(cur) && mode === "view") playVideo(); }); return;
+  }
+  if (isVideo(cur) && !vid.paused) { vid.pause(); vState.resume = true; }
+  const xr = renderer.xr.isPresenting;
+  const body = $("#cardBody"); body.innerHTML = "";
+  blobUrls.forEach(u => URL.revokeObjectURL(u)); blobUrls = [];
+  const add = (tag, props = {}) => { const el = Object.assign(document.createElement(tag), props); body.appendChild(el); return el; };
+  add("h3", { textContent: h.title || TYPES[h.type].label });
+  let mediaEl = null;
+  if (h.type === "info") {
+    if (h.image) add("img", { src: h.image, alt: h.title || "" });
+    if (h.text) add("p", { textContent: h.text });
+  } else if (h.type === "quiz") {
+    add("p", { textContent: h.question || "" });
+    const opts = add("div", { className: "opts" });
+    const fb = add("p", { className: "fb", hidden: true });
+    const ex = add("p", { hidden: true, textContent: h.explain || "" });
+    (h.options || []).forEach((o, i) => {
+      if (!o) return;
+      const b = document.createElement("button"); b.className = "opt"; b.textContent = "ABC"[i] + ". " + o;
+      b.addEventListener("click", () => {
+        if (!fb.hidden) return;
+        const ok = i === +h.correct; if (!(h.id in answers)) answers[h.id] = ok;
+        b.classList.add(ok ? "ok" : "bad"); opts.children[+h.correct]?.classList.add("ok");
+        fb.hidden = false; fb.className = "fb " + (ok ? "ok" : "bad"); fb.textContent = ok ? "Juist." : "Niet juist.";
+        ex.hidden = !h.explain; render();
+      });
+      opts.appendChild(b);
+    });
+  } else if (h.type === "audio" || h.type === "video") {
+    if (h.media) { mediaEl = add(h.type, { src: h.media, controls: true, playsInline: true }); if (!xr) mediaEl.play().catch(() => {}); }
+    else add("p", { className: "hint", textContent: "Er is nog geen bestand gekozen voor dit icoontje." });
+    if (h.text) add("p", { textContent: h.text });
+  } else if (h.type === "doc") {
+    if (h.text) add("p", { textContent: h.text });
+    if (h.media) { const u = URL.createObjectURL(dataUrlToBlob(h.media)); blobUrls.push(u); const a = add("a", { className: "btn primary", href: u, target: "_blank", rel: "noopener", textContent: "Open " + (h.mediaName || "document") }); a.setAttribute("download", h.mediaName || "document.pdf"); }
+    else add("p", { className: "hint", textContent: "Er is nog geen PDF gekozen voor dit icoontje." });
+  } else if (h.type === "web") {
+    if (h.text) add("p", { textContent: h.text });
+    if (h.url) { add("a", { className: "btn primary", href: h.url, target: "_blank", rel: "noopener", textContent: "Open de website ↗" }); add("span", { className: "url", textContent: h.url }); }
+  }
+  const row = add("div", { className: "row" });
+  const close = Object.assign(document.createElement("button"), { className: "btn", textContent: "Sluiten" });
+  close.onclick = closeCard; row.appendChild(close);
+  $("#card").hidden = false; close.focus();
+  if (xr) {
+    if (h.type === "quiz") showXRText(h.title, [h.question, "", ...(h.options || []).filter(Boolean).map((o, i) => "ABC"[i] + ". " + o), "", "Antwoord: " + "ABC"[+h.correct] + ". " + (h.explain || "")]);
+    else if (h.type === "video" && mediaEl) showXRVideo(mediaEl, h.title);
+    else if (h.type === "audio" && mediaEl) { mediaEl.play().catch(() => {}); showXRText(h.title, [h.text || "", "", "♪ Het geluidsfragment speelt af."]); }
+    else if (h.type === "doc" || h.type === "web") showXRText(h.title, [h.text || "", "", "Open dit icoontje op een pc of gsm om het document of de website te bekijken."]);
+    else showXRText(h.title, (h.text || "").split("\n"));
+  }
+}
+function closeCard() {
+  $("#cardBody").querySelectorAll("audio,video").forEach(m => { try { m.pause(); } catch (e) {} });
+  $("#card").hidden = true; delete $("#card").dataset.busy; hideXRCard();
+  if (vState.resume && isVideo(cur)) { vState.resume = false; playVideo(); }
+  renderVbar();
+}
+$("#card").addEventListener("click", e => { if (e.target.id === "card" && !$("#card").dataset.busy) closeCard(); });
+function showLoading(t) { $("#cardBody").innerHTML = `<h3></h3><div class="bar"><i id="barFill"></i></div><p class="hint" id="barText"></p>`; $("#cardBody h3").textContent = t; $("#card").dataset.busy = "1"; $("#card").hidden = false; }
+function progress(f, t) { const b = $("#barFill"); if (b) b.style.width = Math.round(f * 100) + "%"; const x = $("#barText"); if (x && t) x.textContent = t; }
+
+/* ---------- side panel ---------- */
+function renderHeader() {
+  const app = screen === "app";
+  $("#appTools").hidden = !app;
+  $("#homeBack").hidden = !app || viewerOnly;
+  $("#homeBtn").disabled = viewerOnly;
+  if (!app || !tour) return;
+  $("#kindChip").textContent = kindLabel(tour.kind);
+  $("#modeView").setAttribute("aria-pressed", mode === "view"); $("#modeEdit").setAttribute("aria-pressed", mode === "edit");
+  $("#modeSeg").hidden = viewerOnly;
+  if (document.activeElement !== $("#tourTitle")) $("#tourTitle").value = tour.title || "";
+  $("#tourTitle").readOnly = mode !== "edit" || viewerOnly;
+  document.querySelectorAll("[data-edit]").forEach(el => el.hidden = mode !== "edit" || viewerOnly);
+  setSaveState(saveT ? "pending" : "ok");
+}
+function renderStart() {
+  const sec = $("#startSec"); const edit = mode === "edit" && !viewerOnly;
+  const items = isVid() ? [
+    ["Voeg je 360°-video('s) toe: mp4 uit Insta360 Studio", tour.scenes.length > 0],
+    ["Pauzeer de video en klik in het beeld om een icoontje te plaatsen", tour.scenes.some(s => s.hotspots.length)],
+    ["Zet bij vragen ‘Pauzeer de video’ aan", tour.scenes.some(s => s.hotspots.some(h => h.pause))],
+    ["Exporteer (zip) voor de Quest en als back-up", !!tour.lastExport]
+  ] : isBim() ? [
+    ["Laad een IFC-bestand (export uit Revit)", tour.scenes.length > 0],
+    ["Klik op een bouwdeel om er een icoontje op te zetten", tour.scenes.some(s => s.hotspots.length)],
+    ["Kies een startpunt: Rondlopen › ‘Huidige plek als startpunt’", tour.scenes.some(s => s.spawn)],
+    ["Exporteer voor de Quest en als back-up", !!tour.lastExport]
+  ] : [
+    ["Voeg je 360°-foto's toe", tour.scenes.length > 0],
+    ["Klik in een foto om een icoontje te plaatsen", tour.scenes.some(s => s.hotspots.length)],
+    ["Maak de rondleiding: ‘Huidig beeld als stap’", route().length > 0],
+    ["Exporteer voor de Quest en als back-up", !!tour.lastExport]
+  ];
+  const all = items.every(i => i[1]);
+  sec.hidden = !edit || all || !!tour.hideStart;
+  if (sec.hidden) return;
+  const ol = $("#checklist"); ol.innerHTML = "";
+  let nextMarked = false;
+  items.forEach(([txt, done], i) => {
+    const li = document.createElement("li");
+    if (done) li.className = "done"; else if (!nextMarked) { li.className = "next"; nextMarked = true; }
+    li.innerHTML = `<span class="num"></span><span></span>`;
+    li.querySelector(".num").textContent = done ? "✓" : i + 1;
+    li.querySelector("span:last-child").textContent = txt;
+    ol.appendChild(li);
+  });
+}
+$("#hideStart").onclick = () => { tour.hideStart = true; save(); render(); };
+function renderEmpty() {
+  const el = $("#empty");
+  el.hidden = screen !== "app" || !!cur;
+  if (el.hidden) return;
+  const edit = mode === "edit" && !viewerOnly;
+  if (!edit) { el.innerHTML = `<div><div class="emp-ico">…</div><h3>Nog geen inhoud</h3><p>${viewerOnly ? "Deze tour is leeg." : "Klik bovenaan op Bewerken om inhoud toe te voegen."}</p></div>`; return; }
+  el.innerHTML = isVid()
+    ? `<div><div class="emp-ico">▶</div><h3>Voeg je 360°-video toe</h3><p>Exporteer in Insta360 Studio als 360°-video: mp4 met H.264, verhouding 2:1. Voor de Quest is 3840 × 1920 een veilige resolutie. Een lang bezoek splits je best in delen, bijvoorbeeld prefab, schrijnwerkerij en werf.</p><button class="btn primary" id="empPick">360°-video kiezen</button><p class="hint" style="color:#9fb0bb">Je kan de video's ook hierheen slepen.</p></div>`
+    : isBim()
+    ? `<div><div class="emp-ico">IFC</div><h3>Laad je BIM-model</h3><p>Exporteer je model in Revit via Bestand › Exporteren › IFC (IFC 2x3 of IFC4). Het bestand wordt in je browser omgezet; er gaat niets naar een server.</p><button class="btn primary" id="empPick">IFC-bestand kiezen</button><p class="hint" style="color:#9fb0bb">Je kan het bestand ook hierheen slepen.</p></div>`
+    : `<div><div class="emp-ico">360°</div><h3>Voeg je eerste 360°-foto's toe</h3><p>Exporteer de foto's in Insta360 Studio als 360°-foto (JPG, verhouding 2:1). Je kan er meerdere tegelijk kiezen.</p><button class="btn primary" id="empPick">360°-foto's kiezen</button><p class="hint" style="color:#9fb0bb">Je kan de foto's ook hierheen slepen.</p></div>`;
+  $("#empPick").onclick = () => (isVid() ? $("#videoFile") : isBim() ? $("#ifcFile") : $("#sceneFile")).click();
+}
+function renderSide() {
+  if (!tour) return;
+  const edit = mode === "edit" && !viewerOnly;
+  stage.classList.toggle("editing", edit && !!cur);
+  $("#editbar").hidden = !edit || !cur || guide.on;
+  $("#editbar").textContent = moving ? "Klik op de nieuwe plek voor dit icoontje" : M ? "Klik op een bouwdeel om er een icoontje op te zetten" : isVideo(cur) ? "Pauzeer en klik in het beeld: het icoontje verschijnt vanaf dit moment" : "Klik in de foto om een icoontje te plaatsen";
+  $("#viewSeg").hidden = !M;
+  $("#vWalk").setAttribute("aria-pressed", view === "walk"); $("#vOrbit").setAttribute("aria-pressed", view === "orbit");
+  $("#pad").hidden = !(M && view === "walk") || guide.on;
+  $("#scenesHead").textContent = isBim() ? "Modellen" : isVid() ? "Video's" : "Standpunten";
+  $("#sceneCount").textContent = tour.scenes.length || "";
+  const ar = $("#addRow");
+  if (!ar.dataset.kind || ar.dataset.kind !== tour.kind) {
+    ar.dataset.kind = tour.kind;
+    ar.innerHTML = isVid()
+      ? '<button class="btn small" id="addVideo">+ 360°-video</button><label class="chk" style="flex-basis:100%"><input type="checkbox" id="optNext"> Speel automatisch het volgende deel af</label>'
+      : isBim()
+      ? '<button class="btn small" id="addModel">+ IFC-bestand</button>'
+      : '<button class="btn small" id="addScene">+ 360°-foto\'s</button><button class="btn ghost small" id="addModel" title="Optioneel: een BIM-model als extra standpunt in de rondleiding">+ BIM-model (optioneel)</button>';
+    if ($("#addModel")) $("#addModel").onclick = () => $("#ifcFile").click();
+    if ($("#addScene")) $("#addScene").onclick = () => $("#sceneFile").click();
+    if ($("#addVideo")) $("#addVideo").onclick = () => $("#videoFile").click();
+    if ($("#optNext")) $("#optNext").onchange = e => { tour.autoNext = e.target.checked; save(); };
+  }
+  if ($("#optNext")) $("#optNext").checked = tour.autoNext !== false;
+  const list = $("#sceneList"); list.innerHTML = "";
+  for (const s of tour.scenes) {
+    const b = document.createElement("button"); b.className = "scene"; b.setAttribute("aria-current", s === cur);
+    const th = s.thumb || (!isModel(s) && !isVideo(s) && s.image && !s.image.startsWith("data:") ? s.image : "");
+    b.innerHTML = `${th ? '<img class="th" alt="">' : '<span class="th"></span>'}<span><span class="kind"></span><b></b><small></small></span>`;
+    if (th) b.querySelector("img").src = th;
+    b.querySelector(".kind").textContent = isModel(s) ? "BIM-model" : isVideo(s) ? `360°-video · ${fmtT(s.duration)}` : "360°-foto";
+    b.querySelector("b").textContent = s.name;
+    b.querySelector("small").textContent = s.hotspots.length + " icoontjes" + (tour.start === s.id && tour.scenes.length > 1 ? " · start" : "");
+    b.addEventListener("click", () => { stopGuide(); go(s.id); }); list.appendChild(b);
+  }
+  if (!tour.scenes.length) list.innerHTML = `<p class="hint">${isBim() ? "Nog geen model geladen." : isVid() ? "Nog geen video toegevoegd." : "Nog geen foto's toegevoegd."}</p>`;
+  $("#sceneProps").hidden = !edit || !cur;
+  $("#hsSec").hidden = !cur;
+  if (!cur) { $("#hsEditor").hidden = true; return; }
+  $("#propsHead").textContent = M ? "Dit model" : isVideo(cur) ? "Dit deel" : "Dit standpunt";
+  if (document.activeElement !== $("#sceneName")) $("#sceneName").value = cur.name || "";
+  if (document.activeElement !== $("#sceneDesc")) $("#sceneDesc").value = cur.description || "";
+  $("#setStartView").textContent = M ? "Huidige plek als startpunt" : "Huidig beeld als startbeeld";
+  $("#setStartView").disabled = !!M && view !== "walk";
+  $("#setStartView").title = M && view !== "walk" ? "Kies eerst Rondlopen en ga op de gewenste plek staan" : "";
+  $("#setStartScene").hidden = tour.scenes.length < 2;
+  $("#setStartScene").disabled = tour.start === cur.id;
+  const ci = tour.scenes.indexOf(cur);
+  $("#sceneUp").hidden = $("#sceneDown").hidden = tour.scenes.length < 2;
+  $("#sceneUp").disabled = ci === 0; $("#sceneDown").disabled = ci === tour.scenes.length - 1;
+  $("#delSceneWrap").innerHTML = '<button class="btn small danger" id="delScene">Verwijder</button>';
+  $("#delScene").onclick = () => confirmInline("#delSceneWrap", M ? "Model verwijderen?" : isVideo(cur) ? "Video verwijderen?" : "Standpunt verwijderen?", deleteScene);
+  $("#hsCount").textContent = cur.hotspots.length || "";
+  $("#hsHint").innerHTML = isVideo(cur)
+    ? (edit ? "<b>Pauzeer de video</b> en klik in het beeld om een icoontje te plaatsen. Het verschijnt vanaf dat moment; de tijden pas je aan in het blok hieronder." : "Sleep om rond te kijken. Icoontjes verschijnen tijdens de video; bij vragen pauzeert de video. <kbd>Spatie</kbd> pauzeert of speelt af.")
+    : edit
+    ? (M ? "<b>Klik op een bouwdeel</b> om er een icoontje op te zetten. Klik op een icoontje om het te bewerken." : "<b>Klik in de foto</b> om een icoontje te plaatsen. Klik op een icoontje om het te bewerken.")
+    : (M ? "<b>Dubbelklik</b> om ergens naartoe te lopen. <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> om te stappen, <kbd>Shift</kbd> om sneller te gaan, slepen om rond te kijken. <b>Klik op een bouwdeel</b> voor de BIM-gegevens."
+         : "Sleep om rond te kijken, scroll om te zoomen. Klik op een icoontje.");
+  const hlist = $("#hsList"); hlist.innerHTML = "";
+  for (const h of cur.hotspots) {
+    const t = TYPES[h.type] || TYPES.info;
+    const b = document.createElement("button"); b.className = "hs-item"; b.setAttribute("aria-current", h === selHs);
+    b.innerHTML = `<span class="chip"></span><span class="t"></span><span class="coord"></span>`;
+    b.querySelector(".chip").textContent = t.label; b.querySelector(".chip").style.background = t.color;
+    b.querySelector(".t").textContent = h.title || "(zonder titel)";
+    b.querySelector(".coord").textContent = h.pos ? `peil ${fmt(h.pos[1])}` : isVideo(cur) && h.t0 != null ? fmtT(h.t0) : `${Math.round(h.yaw)}°`;
+    b.addEventListener("click", () => {
+      if (isVideo(cur) && h.t0 != null) { vid.currentTime = h.t0 + 0.05; vState.lastT = h.t0 + 0.05; }
+      if (h.pos) { if (view === "orbit") orbit.target.fromArray(h.pos); else { const d = tmp.fromArray(h.pos).sub(player); yaw = rad(Math.atan2(d.x, -d.z)); pitch = clamp(rad(Math.atan2(d.y - EYE, Math.hypot(d.x, d.z))), -60, 60); } }
+      else { yaw = h.yaw; pitch = clamp(h.pitch, -60, 60); }
+      if (mode === "edit") { selHs = h; moving = false; render(); } else activate(h);
+    });
+    hlist.appendChild(b);
+  }
+  if (!cur.hotspots.length) hlist.innerHTML = `<p class="hint">Nog geen icoontjes op ${M ? "dit model" : "dit standpunt"}.</p>`;
+  renderEditor();
+}
+function renderEditor() {
+  const ed = $("#hsEditor");
+  ed.hidden = mode !== "edit" || !selHs || viewerOnly || !cur || !cur.hotspots.includes(selHs);
+  if (ed.hidden) return;
+  const h = selHs, ty = h.type;
+  $("#hsCoord").textContent = h.pos ? `peil ${fmt(h.pos[1])} m` : isVideo(cur) && h.t0 != null ? `${fmtT(h.t0)} – ${fmtT(h.t1)}` : `${Math.round(h.yaw)}° · ${Math.round(h.pitch)}°`;
+  $("#fTime").hidden = !isVideo(cur);
+  if (isVideo(cur)) {
+    for (const [id, v] of [["#hsT0", h.t0], ["#hsT1", h.t1]]) { const el = $(id); if (document.activeElement !== el) el.value = fmtT(v ?? 0); }
+    $("#hsPause").checked = !!h.pause;
+  }
+  const tg = $("#typeGrid"); tg.innerHTML = "";
+  const others = tour.scenes.filter(s => s !== cur);
+  for (const [k, t] of Object.entries(TYPES)) {
+    const b = document.createElement("button"); b.setAttribute("aria-pressed", k === ty);
+    b.innerHTML = `<span class="ti" style="background:${t.color}">${t.icon}</span>${t.label}`;
+    if (k === "link" && !others.length) { b.disabled = true; b.title = "Voeg eerst een tweede standpunt toe"; }
+    b.onclick = () => { changeType(h, k); };
+    tg.appendChild(b);
+  }
+  const setv = (id, v) => { const el = $(id); if (document.activeElement !== el) el.value = v ?? ""; };
+  setv("#hsTitle", h.title); setv("#hsText", h.text); setv("#hsQ", h.question); setv("#hsUrl", h.url);
+  const o = h.options || ["", "", ""]; setv("#hsO0", o[0]); setv("#hsO1", o[1]); setv("#hsO2", o[2]);
+  setv("#hsCorrect", String(h.correct ?? 0)); setv("#hsExpl", h.explain);
+  $("#fText").hidden = !["info", "audio", "video", "doc", "web"].includes(ty);
+  $("#hsTextLbl").textContent = ty === "info" ? "Tekst" : "Korte uitleg (optioneel)";
+  $("#fImg").hidden = ty !== "info";
+  $("#fLink").hidden = ty !== "link";
+  $("#fQuiz").hidden = ty !== "quiz";
+  $("#fMedia").hidden = !MEDIA[ty];
+  $("#fWeb").hidden = ty !== "web";
+  if (ty === "info") {
+    $("#hsImgDel").hidden = !h.image; $("#hsImgBtn").textContent = h.image ? "Andere foto of plan" : "Foto of plan toevoegen";
+    const pv = $("#hsImgPrev"); pv.hidden = !h.image;
+    if (h.image && pv.dataset.k !== String(h.image.length)) { pv.src = h.image; pv.dataset.k = String(h.image.length); }
+  }
+  if (ty === "link") {
+    const sel = $("#hsTarget"); sel.innerHTML = "";
+    for (const s of others) sel.appendChild(new Option(s.name, s.id));
+    if (!h.target || !scene(h.target) || h.target === cur.id) h.target = others[0]?.id;
+    sel.value = h.target || "";
+  }
+  if (MEDIA[ty]) {
+    const m = MEDIA[ty];
+    $("#hsMediaFile").accept = m.accept;
+    $("#hsMediaState").textContent = h.media ? `Gekozen: ${h.mediaName || m.what} (${fmtMB(h.media.length * 0.75)})` : `Nog geen ${m.what} gekozen.` + (ty === "video" ? " Houd video's kort (max. ± 1 minuut) om het bestand licht te houden." : "");
+    $("#hsMediaBtn").textContent = h.media ? "Ander bestand" : `${m.what[0].toUpperCase() + m.what.slice(1)} kiezen`;
+    $("#hsRec").hidden = ty !== "audio";
+    $("#hsRec").textContent = rec && rec.owner === h ? "■ Stop opname" : "● Opnemen"; $("#hsRec").classList.toggle("rec", !!(rec && rec.owner === h));
+    $("#hsMediaDelWrap").innerHTML = h.media ? '<button class="btn small danger" id="hsMediaDel">Bestand weg</button>' : "";
+    if (h.media) $("#hsMediaDel").onclick = () => { delete h.media; delete h.mediaName; save(); render(); };
+  }
+  $("#hsMove").textContent = moving ? "Klik nu in het beeld…" : "Verplaats";
+  $("#delHsWrap").innerHTML = '<button class="btn small danger" id="hsDel">Verwijder</button>';
+  $("#hsDel").onclick = () => confirmInline("#delHsWrap", "Icoontje verwijderen?", () => {
+    cur.hotspots = cur.hotspots.filter(x => x !== selHs);
+    route().forEach(st => { if (st.hotspot === selHs.id) { delete st.hotspot; delete st.open; } });
+    selHs = null; save(); buildXRMarkers(); render();
+  });
+}
+function changeType(h, k) {
+  const was = h.type; if (was === k) return;
+  h.type = k;
+  if (k === "quiz" && !h.options) { h.options = ["", "", ""]; h.correct = 0; h.question = h.question || ""; }
+  if (k === "link") { const t = tour.scenes.find(s => s !== cur); h.target = t?.id; if (!h.title || h.title === TYPES[was].label) { h.title = "Naar " + (t?.name || ""); h.autoTitle = true; } }
+  else if (h.title === TYPES[was].label || h.autoTitle) { h.title = TYPES[k].label; delete h.autoTitle; }
+  if (!MEDIA[k]) { delete h.media; delete h.mediaName; }
+  if (isVideo(cur) && k === "quiz" && h.pause == null) h.pause = true;
+  save(); buildXRMarkers(); render();
+}
+function confirmInline(wrap, q, fn) {
+  const w = $(wrap); w.innerHTML = `<span class="confirm">${q} <button class="btn small danger">Ja</button><button class="btn small">Nee</button></span>`;
+  const [yes, no] = w.querySelectorAll("button"); yes.onclick = fn; no.onclick = render;
+}
+function deleteScene() {
+  const id = cur.id; if (cur.video?.startsWith("idb:")) lib.del("blobs", cur.video.slice(4));
+  tour.scenes = tour.scenes.filter(s => s.id !== id); delete modelCache[id];
+  tour.scenes.forEach(s => s.hotspots = s.hotspots.filter(h => !(h.type === "link" && h.target === id)));
+  tour.route = route().filter(st => st.scene !== id);
+  if (tour.start === id) tour.start = tour.scenes[0]?.id;
+  save();
+  if (tour.scenes.length) go(tour.scenes[0].id); else { clearStage(); render(); }
+}
+
+/* editor bindings */
+const bind = (id, fn, ev = "input") => $(id).addEventListener(ev, e => { if (!tour) return; fn(e.target.value); save(); render(); if (id.startsWith("#hs")) buildXRMarkers(); });
+bind("#tourTitle", v => tour.title = v);
+bind("#sceneName", v => cur.name = v);
+bind("#sceneDesc", v => cur.description = v);
+bind("#hsTitle", v => { selHs.title = v; delete selHs.autoTitle; });
+bind("#hsText", v => selHs.text = v);
+bind("#hsTarget", v => { selHs.target = v; if (selHs.autoTitle) selHs.title = "Naar " + (scene(v)?.name || ""); }, "change");
+bind("#hsQ", v => selHs.question = v);
+[0, 1, 2].forEach(i => bind("#hsO" + i, v => { selHs.options = selHs.options || ["", "", ""]; selHs.options[i] = v; }));
+bind("#hsCorrect", v => selHs.correct = +v, "change");
+bind("#hsExpl", v => selHs.explain = v);
+bind("#hsUrl", v => selHs.url = v.trim());
+$("#hsUrl").addEventListener("change", () => { if (selHs?.url && !/^https?:\/\//i.test(selHs.url)) { selHs.url = "https://" + selHs.url; save(); render(); } });
+$("#hsMove").onclick = () => { moving = true; render(); };
+function setTime(which, v) {
+  if (!selHs) return;
+  const d = vid.duration || cur?.duration || 1e6;
+  v = clamp(v, 0, d);
+  if (which === 0) { selHs.t0 = +v.toFixed(1); if (selHs.t1 == null || selHs.t1 <= selHs.t0) selHs.t1 = +Math.min(selHs.t0 + 5, d).toFixed(1); }
+  else selHs.t1 = +Math.max(v, (selHs.t0 || 0) + 0.5).toFixed(1);
+  save(); render();
+}
+for (const [id, w] of [["#hsT0", 0], ["#hsT1", 1]]) $(id).addEventListener("change", e => { const v = parseT(e.target.value); if (v == null) { toast("Schrijf de tijd als m:ss, bijvoorbeeld 1:05"); render(); return; } setTime(w, v); });
+$("#hsT0Now").onclick = () => setTime(0, vid.currentTime);
+$("#hsT1Now").onclick = () => setTime(1, vid.currentTime);
+$("#hsPause").onchange = e => { if (selHs) { selHs.pause = e.target.checked; save(); render(); } };
+$("#setStartView").onclick = () => {
+  if (M) { cur.spawn = player.toArray().map(x => +x.toFixed(3)); cur.yaw = Math.round(yaw); cur.pitch = 0; toast("Startpunt in het model opgeslagen"); }
+  else { cur.yaw = Math.round(yaw); cur.pitch = Math.round(pitch); toast("Startbeeld van dit standpunt opgeslagen"); }
+  save(); render();
+};
+$("#setStartScene").onclick = () => { tour.start = cur.id; save(); render(); toast("De tour start nu hier"); };
+$("#sceneUp").onclick = () => { const a = tour.scenes, i = a.indexOf(cur); if (i > 0) { [a[i - 1], a[i]] = [a[i], a[i - 1]]; save(); render(); } };
+$("#sceneDown").onclick = () => { const a = tour.scenes, i = a.indexOf(cur); if (i < a.length - 1) { [a[i + 1], a[i]] = [a[i], a[i + 1]]; save(); render(); } };
+$("#modeView").onclick = () => { mode = "view"; selHs = null; selStep = null; moving = false; hidePicker(); render(); };
+$("#modeEdit").onclick = () => { stopGuide(); mode = "edit"; closeCard(); hideBim(); render(); };
+
+const readAsDataURL = f => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(f); });
+$("#hsImgBtn").onclick = () => $("#hsImgFile").click();
+$("#hsImgFile").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f || !selHs) return;
+  try { const bmp = await decodeImage(f, 1600); selHs.image = bitmapToDataURL(bmp, 1600, 0.85); bmp.close?.(); save(); render(); }
+  catch (err) { toast("Deze afbeelding kon niet gelezen worden."); }
+};
+$("#hsImgDel").onclick = () => { delete selHs.image; save(); render(); };
+$("#hsMediaBtn").onclick = () => $("#hsMediaFile").click();
+$("#hsMediaFile").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f || !selHs || !MEDIA[selHs.type]) return;
+  const m = MEDIA[selHs.type];
+  if (f.size > m.max * 1048576) { toast(`Dit bestand is groter dan ${m.max} MB. Kies een kleiner of korter bestand.`); return; }
+  const h = selHs; showLoading("Bestand toevoegen"); progress(0.5, f.name);
+  try { h.media = await readAsDataURL(f); h.mediaName = f.name; if (h.title === TYPES[h.type].label) h.title = niceName(f.name, TYPES[h.type].label); }
+  catch (err) { toast("Dit bestand kon niet gelezen worden."); }
+  closeCard(); save(); render();
+};
+$("#hsRec").onclick = () => { const h = selHs; recordAudio(h, data => { h.media = data; h.mediaName = "opname.webm"; }); };
+
+/* ---------- adding photos and models ---------- */
+function niceName(fn, fallback) {
+  const base = fn.replace(/\.[^.]+$/, "");
+  if (/^(img|vid|pano|dsc|insta|lrv|pxl)[\s_-]?\d|^\d[\d_\s-]{5,}$/i.test(base)) return fallback;
+  return base.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim() || fallback;
+}
+async function decodeImage(f, maxW) {
+  /* small files: decode fully and scale down on the canvas; big camera files: let the browser decode at reduced size */
+  if (f.size < 3 * 1048576) return await createImageBitmap(f);
+  try { return await createImageBitmap(f, { resizeWidth: maxW, resizeQuality: "high" }); }
+  catch (e) { return await createImageBitmap(f); }
+}
+function bitmapToDataURL(bmp, maxW, q) {
+  const w = Math.min(maxW, bmp.width), h = Math.round(bmp.height * w / bmp.width);
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  c.getContext("2d").drawImage(bmp, 0, 0, w, h); return c.toDataURL("image/jpeg", q);
+}
+async function importPhotos(files) {
+  const imgs = [...files].filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|webp)$/i.test(f.name));
+  if (!imgs.length) { toast("Geen foto's gevonden. Kies JPG-bestanden die je uit Insta360 Studio exporteerde."); return; }
+  if (isBim()) { toast("In een BIM-project kan je geen 360°-foto's toevoegen. Maak daarvoor een rondleiding."); return; }
+  if (mode !== "edit") { mode = "edit"; stopGuide(); }
+  showLoading(imgs.length > 1 ? `${imgs.length} foto's toevoegen` : "Foto toevoegen");
+  let first = null; const odd = [];
+  for (let i = 0; i < imgs.length; i++) {
+    const f = imgs[i]; progress(i / imgs.length, `Foto ${i + 1} van ${imgs.length}: ${f.name}`);
+    await new Promise(r => setTimeout(r, 20));
+    try {
+      const bmp = await decodeImage(f, 6144);
+      if (Math.abs(bmp.width / bmp.height - 2) > 0.05) odd.push(f.name);
+      const s = { id: uid(), kind: "pano", name: niceName(f.name, `Standpunt ${tour.scenes.length + 1}`), description: "", image: bitmapToDataURL(bmp, 6144, 0.86), thumb: bitmapToDataURL(bmp, 240, 0.7), yaw: 0, pitch: 0, hotspots: [] };
+      bmp.close?.();
+      tour.scenes.push(s); first = first || s;
+    } catch (e) { odd.push(f.name + " (onleesbaar)"); }
+  }
+  progress(1, "Klaar");
+  if (first && (!tour.start || !scene(tour.start))) tour.start = first.id;
+  closeCard(); await saveNow();
+  if (first) await go(first.id);
+  if (odd.length) toast(`Let op: ${odd.slice(0, 3).join(", ")}${odd.length > 3 ? "…" : ""} ${odd.length > 1 ? "zijn" : "is"} geen 2:1-panorama. Exporteer in Insta360 Studio als 360°-foto.`);
+  else if (first) toast(imgs.length > 1 ? `${imgs.length} foto's toegevoegd. Klik in een foto om een icoontje te plaatsen.` : "Foto toegevoegd. Klik in de foto om een icoontje te plaatsen.");
+}
+$("#sceneFile").onchange = e => { const fs = [...e.target.files]; e.target.value = ""; importPhotos(fs); };
+
+async function wasmBase() {
+  const local = new URL("lib/", document.baseURI).href;
+  try { const r = await fetch(local + "web-ifc.wasm", { method: "HEAD" }); if (r.ok) return local; } catch (e) {}
+  return WEBIFC;
+}
+async function ifcToGlb(buffer, onProgress = () => {}) {
+  onProgress(0.02, "IFC-lezer laden…");
+  const WebIFC = await import(WEBIFC + "web-ifc-api.js");
+  const api = new WebIFC.IfcAPI();
+  const base = await wasmBase();
+  await api.Init(path => base + path.split("/").pop(), true);
+  onProgress(0.08, "IFC-bestand openen…");
+  const id = api.OpenModel(new Uint8Array(buffer), { COORDINATE_TO_ORIGIN: true });
+  const buckets = new Map(), meta = {};
+  const m4 = new THREE.Matrix4(), n3 = new THREE.Matrix3(), v = new THREE.Vector3();
+  let count = 0;
+  api.StreamAllMeshes(id, (mesh, i, total) => {
+    const eid = mesh.expressID, geoms = mesh.geometries;
+    for (let g = 0; g < geoms.size(); g++) {
+      const pg = geoms.get(g);
+      const geom = api.GetGeometry(id, pg.geometryExpressID);
+      const verts = api.GetVertexArray(geom.GetVertexData(), geom.GetVertexDataSize());
+      const inds = api.GetIndexArray(geom.GetIndexData(), geom.GetIndexDataSize());
+      m4.fromArray(pg.flatTransformation); n3.getNormalMatrix(m4);
+      const c = pg.color, key = [c.x, c.y, c.z, c.w].map(x => Math.round(x * 40)).join(",");
+      let b = buckets.get(key); if (!b) { b = { c: { x: c.x, y: c.y, z: c.z, w: c.w }, pos: [], nrm: [], eid: [], idx: [], n: 0 }; buckets.set(key, b); }
+      const off = b.n;
+      for (let k = 0; k < verts.length; k += 6) {
+        v.set(verts[k], verts[k + 1], verts[k + 2]).applyMatrix4(m4); b.pos.push(v.x, v.y, v.z);
+        v.set(verts[k + 3], verts[k + 4], verts[k + 5]).applyMatrix3(n3).normalize(); b.nrm.push(v.x, v.y, v.z);
+        b.eid.push(eid);
+      }
+      for (let k = 0; k < inds.length; k++) b.idx.push(inds[k] + off);
+      b.n += verts.length / 6;
+      geom.delete();
+    }
+    if (!meta[eid]) {
+      try { const line = api.GetLine(id, eid); meta[eid] = [api.GetNameFromTypeCode(api.GetLineType(id, eid)), line?.Name?.value || "", line?.ObjectType?.value || "", line?.GlobalId?.value || ""]; }
+      catch (e) { meta[eid] = ["IFC-element", "", "", ""]; }
+    }
+    count++;
+    if (i % 40 === 0) onProgress(0.1 + 0.7 * (i / Math.max(1, total)), `Bouwdelen omzetten: ${i} van ${total}`);
+  });
+  api.CloseModel(id);
+  if (!buckets.size) throw new Error("er zit geen 3D-geometrie in dit bestand");
+  onProgress(0.82, "Model opbouwen…");
+  const group = new THREE.Group(); group.name = "ifc";
+  for (const b of buckets.values()) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(b.pos, 3));
+    g.setAttribute("normal", new THREE.Float32BufferAttribute(b.nrm, 3));
+    g.setAttribute("eid", new THREE.Float32BufferAttribute(b.eid, 1));
+    g.setIndex(new THREE.BufferAttribute(new Uint32Array(b.idx), 1));
+    const mat = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
+    mat.color.setRGB(b.c.x, b.c.y, b.c.z, THREE.SRGBColorSpace);
+    if (b.c.w < 0.99) { mat.transparent = true; mat.opacity = Math.max(0.25, b.c.w); mat.depthWrite = false; }
+    group.add(new THREE.Mesh(g, mat));
+  }
+  let box = new THREE.Box3().setFromObject(group);
+  const size = box.getSize(new THREE.Vector3());
+  const scale = Math.max(size.x, size.y, size.z) > 3000 ? 0.001 : 1;
+  const c = box.getCenter(new THREE.Vector3());
+  for (const m of group.children) { m.geometry.translate(-c.x, -box.min.y, -c.z); if (scale !== 1) m.geometry.scale(scale, scale, scale); }
+  group.userData.meta = meta;
+  onProgress(0.9, "Opslaan als lichter 3D-model…");
+  const glb = await new GLTFExporter().parseAsync(group, { binary: true });
+  box = new THREE.Box3().setFromObject(group); const sz = box.getSize(new THREE.Vector3());
+  return { glb, elements: count, size: sz, triangles: [...buckets.values()].reduce((t, b) => t + b.idx.length / 3, 0) };
+}
+async function importIfc(f) {
+  if (!f) return;
+  if (!/\.ifc$/i.test(f.name)) { toast("Kies een .ifc-bestand (export uit Revit)."); return; }
+  if (mode !== "edit") { mode = "edit"; stopGuide(); }
+  showLoading("IFC-model omzetten");
+  try {
+    const res = await ifcToGlb(await f.arrayBuffer(), progress);
+    const url = await readAsDataURL(new Blob([res.glb], { type: "model/gltf-binary" }));
+    const s = { id: uid(), kind: "model", name: f.name.replace(/\.ifc$/i, ""), description: `${res.elements} bouwdelen · ${res.size.x.toFixed(1).replace(".", ",")} × ${res.size.z.toFixed(1).replace(".", ",")} m, hoogte ${res.size.y.toFixed(1).replace(".", ",")} m`, model: url, yaw: 0, pitch: 0, hotspots: [] };
+    tour.scenes.push(s); if (!tour.start || !scene(tour.start)) tour.start = s.id;
+    if (isBim() && (!tour.title || /^Nieuw BIM-project$/.test(tour.title))) tour.title = s.name;
+    delete $("#card").dataset.busy; await saveNow();
+    await go(s.id); toast(`Model ingeladen: ${res.elements} bouwdelen. Klik op een bouwdeel om er een icoontje op te zetten.`);
+  } catch (err) {
+    console.error(err); delete $("#card").dataset.busy;
+    $("#cardBody").innerHTML = `<h3>Dit IFC-bestand lukte niet</h3><p></p><p class="hint">Tip: exporteer in Revit via Bestand › Exporteren › IFC, met IFC 2x3 Coordination View of IFC4 Reference View.</p><div class="row"><button class="btn">Sluiten</button></div>`;
+    $("#cardBody p").textContent = "Melding: " + (err.message || err);
+    $("#cardBody button").onclick = closeCard; $("#card").hidden = false;
+  }
+}
+$("#ifcFile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; importIfc(f); };
+
+/* drag and drop onto the viewer */
+function isVideoFile(f) { return /^video\//.test(f.type) || /\.(mp4|webm|mov|m4v)$/i.test(f.name); }
+function routeFiles(files) {
+  const fs = [...files]; if (!fs.length) return;
+  const proj = fs.find(f => /\.(html?|json|zip)$/i.test(f.name));
+  if (proj) { openFromFile(proj); return; }
+  const ifc = fs.find(f => /\.ifc$/i.test(f.name));
+  if (ifc) { importIfc(ifc); return; }
+  const vids = fs.filter(isVideoFile);
+  if (vids.length) { importVideos(vids); return; }
+  importPhotos(fs);
+}
+for (const [el, cls] of [[stage, "drag"], [$("#home"), "drag"]]) {
+  el.addEventListener("dragover", e => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { e.preventDefault(); el.classList.add(cls); } });
+  el.addEventListener("dragleave", e => { if (e.target === el || !el.contains(e.relatedTarget)) el.classList.remove(cls); });
+  el.addEventListener("drop", e => { e.preventDefault(); el.classList.remove(cls); if (viewerOnly) return; if (el === stage) routeFiles(e.dataTransfer.files); else homeDrop(e.dataTransfer.files); });
+}
+
+/* ---------- export / open ---------- */
+const SCR = "<" + "script", END = "<" + "/script>";
+const TAG_OPEN = SCR + ' type="application/json" id="tour-data">', TAG_CLOSE = END;
+const DATA_RE = new RegExp(SCR + ' type="application/json" id="tour-data">([\\s\\S]*?)' + END);
+async function toDataURL(src) { if (!src || src.startsWith("data:")) return src; return readAsDataURL(await (await fetch(src)).blob()); }
+let jszipP = null;
+function loadJSZip() {
+  return jszipP ||= new Promise((ok, no) => {
+    if (window.JSZip) return ok(window.JSZip);
+    const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+    sc.onload = () => ok(window.JSZip); sc.onerror = () => { jszipP = null; no(new Error("de zip-bibliotheek kon niet laden (geen internet?)")); };
+    document.head.appendChild(sc);
+  });
+}
+function buildViewerHtml(out) {
+  const json = JSON.stringify(out).replace(/</g, "\\u003c");
+  let html = PRISTINE.replace(DATA_RE, () => TAG_OPEN + json + TAG_CLOSE);
+  html = html.replace(new RegExp(SCR + '(?![^>]*data-app)(?![^>]*id="tour-data")[^>]*>[\\s\\S]*?' + END, "g"), "");
+  if (!/^<!doctype/i.test(html)) html = "<!doctype html>\n" + html;
+  return html;
+}
+const LEESMIJ = `Werftour – 360°-video
+
+1. Pak deze zip volledig uit. De map 'videos' moet naast index.html blijven staan.
+2. Dubbelklikken op index.html werkt niet voor video: de browser blokkeert dat. Open de map via een webserver, bijvoorbeeld de start_server van de VR-viewer starter, of zet de map op GitHub Pages.
+3. Op de Meta Quest: open de link in de browser en tik op 'VR-bril'.
+4. Verder bewerken: open Werftour, kies op het startscherm 'Bestand openen…' en selecteer deze zip.
+`;
+async function exportTour() {
+  if (!tour) return;
+  if (!tour.scenes.length) { toast("Er is nog niets om te exporteren. Voeg eerst inhoud toe."); return; }
+  const btn = $("#exportBtn"); btn.disabled = true; btn.textContent = "Bezig…";
+  const hasVideo = tour.scenes.some(isVideo);
+  try {
+    await saveNow();
+    const out = JSON.parse(JSON.stringify(tour)); out.viewerOnly = true; delete out.demo;
+    for (const s of out.scenes) { if (s.image) s.image = await toDataURL(s.image); if (s.model) s.model = await toDataURL(s.model); }
+    const base = (tour.title || "werftour").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "werftour";
+    let ok = false, name, size;
+    if (hasVideo) {
+      showLoading("Zip maken met de video's"); progress(0.02, "Zip-bibliotheek laden…");
+      const JSZip = await loadJSZip(); const zip = new JSZip();
+      let n = 0;
+      for (const s of out.scenes) if (isVideo(s) && s.video) {
+        progress(0.05 + 0.4 * (n++ / out.scenes.length), `Video toevoegen: ${s.name}`);
+        let blob;
+        if (s.video.startsWith("idb:")) blob = await lib.get("blobs", s.video.slice(4));
+        else if (s.video.startsWith("data:")) blob = dataUrlToBlob(s.video);
+        else blob = await (await fetch(s.video)).blob();
+        if (!blob) throw new Error(`de video van ‘${s.name}’ zit niet meer in deze browser`);
+        const ext = /webm/.test(blob.type) ? "webm" : /quicktime/.test(blob.type) ? "mov" : "mp4";
+        const path = `videos/${s.id}.${ext}`; zip.file(path, blob, { binary: true }); s.video = path;
+      }
+      zip.file("index.html", buildViewerHtml(out)); zip.file("LEESMIJ.txt", LEESMIJ);
+      const blob = await zip.generateAsync({ type: "blob", compression: "STORE" }, m => progress(0.45 + 0.5 * m.percent / 100, "Zip samenstellen…"));
+      closeCard(); name = base + ".zip"; size = blob.size;
+      ok = await saveFile(name, blob, "application/zip");
+    } else {
+      const html = buildViewerHtml(out); name = base + ".html"; size = html.length;
+      ok = await saveFile(name, html, "text/html");
+    }
+    if (ok) {
+      tour.lastExport = Date.now(); await saveNow(); render();
+      toast(hasVideo ? `Geëxporteerd als ${name} (${fmtMB(size)}). Pak de zip uit en zet de map op GitHub Pages of in de VR-viewer starter; dubbelklikken op index.html werkt niet voor video.` : `Geëxporteerd als ${name} (${fmtMB(size)}). Zet dit bestand op de Quest, of open het later opnieuw in Werftour.`);
+    }
+  } catch (e) { console.error(e); closeCard(); toast("Exporteren lukte niet: " + (e.message || e)); }
+  btn.disabled = false; btn.textContent = "Exporteren";
+}
+$("#exportBtn").onclick = exportTour;
+async function saveFile(filename, data, type) {
+  const blob = data instanceof Blob ? data : new Blob([data], { type });
+  const dl = window.claude?.use ? await window.claude.use("downloads").catch(() => null) : null;
+  if (dl) { try { await dl.save({ filename, data: blob }); return true; } catch (e) { toast("Opslaan geannuleerd"); return false; } }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 8000); return true;
+}
+async function openFromFile(f) {
+  try {
+    let txt, zip = null;
+    if (/\.zip$/i.test(f.name)) {
+      showLoading("Project openen"); progress(0.05, "Zip lezen…");
+      const JSZip = await loadJSZip(); zip = await JSZip.loadAsync(f);
+      const hf = zip.file("index.html") || zip.file(/\.html?$/i)[0];
+      if (!hf) throw new Error("er zit geen Werftour-bestand in deze zip");
+      txt = await hf.async("string");
+    } else txt = await f.text();
+    const m = txt.match(DATA_RE); if (m) txt = m[1];
+    const t = JSON.parse(txt);
+    if (!t || !Array.isArray(t.scenes)) throw new Error("er zit geen Werftour-project in dit bestand");
+    if (zip) {
+      const base = (zip.file("index.html") ? "" : (zip.file(/\.html?$/i)[0].name.replace(/[^/]*$/, "")));
+      let n = 0;
+      for (const s of t.scenes) if (isVideo(s) && s.video && !/^(idb|data|blob):/.test(s.video)) {
+        progress(0.1 + 0.8 * (n++ / t.scenes.length), `Video inladen: ${s.name}`);
+        const zf = zip.file(base + s.video); if (!zf) throw new Error(`de video ‘${s.video}’ ontbreekt in de zip`);
+        const b = await zf.async("blob"); const typed = new Blob([b], { type: /\.webm$/i.test(s.video) ? "video/webm" : "video/mp4" });
+        const key = uid(); await lib.put("blobs", key, typed); s.video = "idb:" + key; s.videoSize = typed.size;
+      }
+      closeCard();
+    }
+    t.viewerOnly = false; delete t.demo; t.lastExport = Date.now(); t.changedAt = t.lastExport;
+    const exists = t.id && await lib.get("meta", t.id);
+    if (!t.id || exists) { if (exists) t.title = (t.title || "Project") + " (geopend uit bestand)"; t.id = uid(); }
+    await openProject(t, { mode: "edit" }); await saveNow();
+    toast("Project geopend: " + (t.title || f.name));
+  } catch (err) { closeCard(); toast("Dit bestand kon niet geopend worden: " + err.message); }
+}
+$("#projFile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) openFromFile(f); };
+
+/* ---------- adding 360° videos ---------- */
+async function probeVideo(src) {
+  const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = src;
+  try {
+    await new Promise((ok, no) => { v.onloadeddata = ok; v.onerror = () => no(new Error("niet afspeelbaar in deze browser")); setTimeout(() => no(new Error("laden duurde te lang")), 25000); });
+    const d = v.duration, w = v.videoWidth, h = v.videoHeight;
+    await new Promise(ok => { v.onseeked = ok; v.currentTime = Math.min(1, (d || 2) / 2); setTimeout(ok, 4000); });
+    const c = document.createElement("canvas"); c.width = 240; c.height = 120; c.getContext("2d").drawImage(v, 0, 0, 240, 120);
+    return { d, w, h, thumb: c.toDataURL("image/jpeg", 0.7) };
+  } finally { v.removeAttribute("src"); v.load(); }
+}
+async function importVideos(files) {
+  const vids = [...files].filter(isVideoFile);
+  if (!vids.length) { toast("Geen video's gevonden. Kies een mp4 die je uit Insta360 Studio exporteerde."); return; }
+  if (!isVid()) { toast("Video's voeg je toe in een 360°-videoproject. Kies op het startscherm ‘Nieuwe 360°-video’."); return; }
+  if (mode !== "edit") { mode = "edit"; stopGuide(); }
+  showLoading(vids.length > 1 ? `${vids.length} video's toevoegen` : "Video toevoegen");
+  let first = null; const warn = [];
+  for (let i = 0; i < vids.length; i++) {
+    const f = vids[i]; progress(i / vids.length, `Video ${i + 1} van ${vids.length}: ${f.name} (${fmtMB(f.size)})`);
+    if (f.size > 2 * 1073741824) { warn.push(`${f.name} is groter dan 2 GB: exporteer met een lagere resolutie of in delen`); continue; }
+    let meta = null;
+    const u = URL.createObjectURL(f);
+    try { meta = await probeVideo(u); }
+    catch (e) {
+      if (f.size < 300 * 1048576) { try { meta = await probeVideo(await readAsDataURL(f)); } catch (e2) {} }
+      if (!meta) { warn.push(`${f.name} kan niet afgespeeld worden (${e.message}). Exporteer als mp4 met H.264, niet H.265`); URL.revokeObjectURL(u); continue; }
+    }
+    URL.revokeObjectURL(u);
+    if (meta.w && Math.abs(meta.w / meta.h - 2) > 0.05) warn.push(`${f.name} is geen 2:1-video (${meta.w} × ${meta.h})`);
+    else if (meta.w > 4096) warn.push(`${f.name} is ${meta.w} px breed; de Quest speelt 3840 × 1920 vlotter af`);
+    try {
+      const key = uid(); await lib.put("blobs", key, f);
+      const s = { id: uid(), kind: "video", name: niceName(f.name, `Deel ${tour.scenes.length + 1}`), description: "", video: "idb:" + key, videoSize: f.size, duration: meta.d, thumb: meta.thumb, yaw: 0, pitch: 0, hotspots: [] };
+      tour.scenes.push(s); first = first || s;
+    } catch (e) { warn.push(`${f.name} kon niet bewaard worden in de browser (te weinig opslagruimte?)`); }
+  }
+  progress(1, "Klaar");
+  if (first && (!tour.start || !scene(tour.start))) tour.start = first.id;
+  if (first && /^Nieuwe 360°-video$/.test(tour.title || "")) tour.title = first.name;
+  closeCard(); await saveNow();
+  if (first) await go(first.id);
+  if (warn.length) toast("Let op: " + warn.slice(0, 2).join(" · ") + (warn.length > 2 ? " …" : ""));
+  else if (first) toast("Video toegevoegd. Pauzeer de video en klik in het beeld om een icoontje te plaatsen.");
+}
+$("#videoFile").onchange = e => { const fs = [...e.target.files]; e.target.value = ""; importVideos(fs); };
+
+/* ---------- start screen ---------- */
+const rtf = new Intl.RelativeTimeFormat("nl", { numeric: "auto" });
+function ago(t) {
+  const s = (t - Date.now()) / 1000;
+  for (const [u, n] of [["day", 86400], ["hour", 3600], ["minute", 60]]) if (Math.abs(s) >= n) return rtf.format(Math.round(s / n), u);
+  return "zonet";
+}
+async function renderHome() {
+  const metas = (await lib.all("meta")).sort((a, b) => b.updated - a.updated);
+  const el = $("#projList"); el.innerHTML = "";
+  if (!metas.length) { el.innerHTML = '<div class="pempty">Nog geen projecten. Start hierboven een nieuwe rondleiding of een BIM-project.</div>'; return; }
+  for (const m of metas) {
+    const row = document.createElement("div"); row.className = "prow";
+    row.innerHTML = `${m.thumb ? '<img class="th" alt="">' : '<span class="th"></span>'}<div style="min-width:0"><b></b><small></small></div><div class="acts"><button class="btn small primary">Openen</button><span class="dw"><button class="btn small danger">Verwijderen</button></span></div>`;
+    if (m.thumb) row.querySelector("img").src = m.thumb;
+    row.querySelector("b").textContent = m.name || "Zonder naam";
+    const unit = m.kind === "bim" ? (m.scenes === 1 ? "model" : "modellen") : m.kind === "video" ? (m.scenes === 1 ? "video" : "video's") : "standpunten";
+    row.querySelector("small").textContent = `${kindLabel(m.kind)} · ${m.scenes} ${unit} · bewerkt ${ago(m.updated)} · ${fmtMB(m.size * 0.75 + (m.videoSize || 0))}`;
+    const [openB] = row.querySelectorAll(".acts > button");
+    openB.onclick = async () => { const d = await lib.get("data", m.id); if (!d) { toast("Dit project kon niet geladen worden."); return; } const t = JSON.parse(d); t.id = m.id; await openProject(t, { mode: t.scenes.length ? "view" : "edit" }); };
+    const dw = row.querySelector(".dw");
+    dw.querySelector("button").onclick = () => {
+      dw.innerHTML = '<span class="confirm">Definitief verwijderen? <button class="btn small danger">Ja</button><button class="btn small">Nee</button></span>';
+      const [y, n] = dw.querySelectorAll("button");
+      y.onclick = async () => {
+        try { const d = await lib.get("data", m.id); for (const s of JSON.parse(d || "{}").scenes || []) if (s.video?.startsWith("idb:")) await lib.del("blobs", s.video.slice(4)); } catch (e) {}
+        await lib.del("meta", m.id); await lib.del("data", m.id); renderHome(); toast("Project verwijderd");
+      };
+      n.onclick = renderHome;
+    };
+    el.appendChild(row);
+  }
+}
+async function showHome() {
+  if (saveT) await saveNow();
+  stopGuide(); closeCard(); hideBim(); hidePicker();
+  if (renderer.xr.isPresenting) renderer.xr.getSession()?.end();
+  screen = "home"; tour = null; clearStage(); resetVideo(); window.scrollTo(0, 0);
+  $("#home").hidden = false; $("#main").hidden = true;
+  renderHeader(); renderHome();
+}
+$("#homeBtn").onclick = () => { if (!viewerOnly && screen === "app") showHome(); };
+function newProject(kind) {
+  return { id: uid(), kind, title: kind === "bim" ? "Nieuw BIM-project" : kind === "video" ? "Nieuwe 360°-video" : "Nieuwe rondleiding", scenes: [], route: [], tts: true, guideAuto: true, guideAutostart: kind === "tour", autoNext: true, createdAt: Date.now() };
+}
+$("#newTour").onclick = async () => { await openProject(newProject("tour"), { mode: "edit" }); await saveNow(); $("#tourTitle").focus(); $("#tourTitle").select(); };
+$("#newBim").onclick = async () => { await openProject(newProject("bim"), { mode: "edit" }); await saveNow(); };
+$("#demoTour").onclick = () => openProject(JSON.parse($("#demo-tour").textContent), { mode: "view" });
+$("#demoBim").onclick = () => openProject(JSON.parse($("#demo-bim").textContent), { mode: "view" });
+$("#newVideo").onclick = async () => { await openProject(newProject("video"), { mode: "edit" }); await saveNow(); };
+$("#demoVideo").onclick = () => openProject(JSON.parse($("#demo-video").textContent), { mode: "view" });
+$("#openFileBtn").onclick = () => $("#projFile").click();
+async function homeDrop(files) {
+  const fs = [...files]; if (!fs.length) return;
+  const proj = fs.find(f => /\.(html?|json|zip)$/i.test(f.name));
+  if (proj) return openFromFile(proj);
+  const vids = fs.filter(isVideoFile);
+  if (vids.length) { await openProject(newProject("video"), { mode: "edit" }); return importVideos(vids); }
+  const ifc = fs.find(f => /\.ifc$/i.test(f.name));
+  if (ifc) { await openProject(newProject("bim"), { mode: "edit" }); return importIfc(ifc); }
+  await openProject(newProject("tour"), { mode: "edit" }); return importPhotos(fs);
+}
+async function openProject(t, { mode: m } = {}) {
+  stopGuide(); closeCard(); hideBim(); hidePicker();
+  tour = t; tour.scenes = tour.scenes || []; tour.route = tour.route || [];
+  if (!tour.kind) tour.kind = tour.scenes.length && tour.scenes.every(isModel) ? "bim" : "tour";
+  for (const s of tour.scenes) { s.hotspots = s.hotspots || []; if (!s.kind) s.kind = s.model ? "model" : "pano"; }
+  Object.keys(modelCache).forEach(k => delete modelCache[k]);
+  answers = {}; selHs = null; selStep = null; moving = false; clearStage(); resetVideo();
+  viewerOnly = !!tour.viewerOnly;
+  mode = viewerOnly ? "view" : (m || (tour.scenes.length ? "view" : "edit"));
+  screen = "app"; $("#home").hidden = true; $("#main").hidden = false;
+  const side = $("#side");
+  if (isBim()) side.insertBefore($("#guideSec"), $("#stepEditor")); else side.insertBefore($("#guideSec"), $("#scenesSec"));
+  $("#addRow").dataset.kind = "";
+  $("#credits").hidden = !tour.demo;
+  projSize = viewerOnly ? 0 : JSON.stringify(tour).length; saveTimeStr = "";
+  resize();
+  if (tour.scenes.length) await go(scene(tour.start) ? tour.start : tour.scenes[0].id);
+  render(); renderSize();
+  if (mode === "view" && tour.guideAutostart && route().length) showWelcome();
+}
+async function migrateOld() {
+  if (await lib.get("kv", "migrated")) return;
+  try {
+    const d = await lib.get("kv", "draft-v3") || await lib.get("kv", "draft");
+    if (d) {
+      const t = JSON.parse(d);
+      if (t?.scenes?.length) {
+        t.id = uid(); t.title = (t.title || "Tour") + " (eerdere versie)"; delete t.viewerOnly;
+        t.kind = t.scenes.every(s => s.kind === "model") ? "bim" : "tour"; t.changedAt = Date.now();
+        const data = JSON.stringify(t);
+        await lib.put("data", t.id, data);
+        await lib.put("meta", t.id, { id: t.id, name: t.title, kind: t.kind, updated: t.changedAt, size: data.length, thumb: "", scenes: t.scenes.length });
+      }
+    }
+    await lib.put("kv", "migrated", 1);
+  } catch (e) {}
+}
+
+/* ---------- VR (WebXR) ---------- */
+const xrGroup = new THREE.Group(); world.add(xrGroup);
+function labelTexture(h) {
+  const t = TYPES[h.type] || TYPES.info;
+  const c = document.createElement("canvas"); c.width = 512; c.height = 160; const g = c.getContext("2d");
+  g.fillStyle = t.color; g.beginPath(); g.arc(80, 80, 60, 0, 7); g.fill(); g.lineWidth = 8; g.strokeStyle = "#fff"; g.stroke();
+  g.fillStyle = "#fff"; g.font = "bold 64px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(t.icon, 80, 84);
+  g.textAlign = "left"; g.font = "600 40px sans-serif"; const s = (h.title || "").slice(0, 22);
+  const w = g.measureText(s).width; g.fillStyle = "rgba(10,14,17,.85)"; g.fillRect(150, 52, w + 32, 60); g.fillStyle = "#fff"; g.fillText(s, 166, 84);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; return tex;
+}
+function buildXRMarkers() {
+  xrGroup.children.forEach(s => s.material?.map?.dispose());
+  xrGroup.clear(); if (!cur) return;
+  const model = isModel(cur);
+  xrGroup.position.set(0, model ? 0 : 1.6, 0);
+  for (const h of cur.hotspots) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture(h), depthTest: model, transparent: true }));
+    s.center.set(80 / 512, 0.5);
+    if (h.pos) { s.position.fromArray(h.pos); s.scale.set(0.96, 0.3, 1); }
+    else { s.position.copy(dirFrom(h.yaw, h.pitch).multiplyScalar(5)); s.scale.set(1.6, 0.5, 1); }
+    s.userData.h = h; s.renderOrder = 2; xrGroup.add(s);
+  }
+}
+let xrCard = null;
+function placeInFront(mesh, dist = 1.6) {
+  const xrCam = renderer.xr.getCamera(); const head = new THREE.Vector3().setFromMatrixPosition(xrCam.matrixWorld);
+  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(xrCam.getWorldQuaternion(new THREE.Quaternion())); fwd.y = 0; fwd.normalize();
+  mesh.position.copy(head).addScaledVector(fwd, dist); mesh.lookAt(head.x, mesh.position.y, head.z); mesh.renderOrder = 3; world.add(mesh);
+}
+function showXRText(title, lines) {
+  hideXRCard();
+  const c = document.createElement("canvas"); c.width = 1024; c.height = 640; const g = c.getContext("2d");
+  g.fillStyle = "rgba(20,26,31,.95)"; g.fillRect(0, 0, 1024, 640); g.fillStyle = "#fff"; g.font = "600 52px sans-serif"; g.fillText(title || "", 48, 90);
+  g.font = "36px sans-serif"; let y = 160;
+  for (const para of lines) { const words = String(para ?? "").split(" "); let line = ""; for (const w of words) { if (g.measureText(line + w).width > 920) { g.fillText(line, 48, y); y += 46; line = ""; } line += w + " "; } g.fillText(line, 48, y); y += 46; if (y > 600) break; }
+  g.fillStyle = "#f07a2a"; g.font = "600 30px sans-serif"; g.fillText("Trigger: sluiten", 48, 620);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  xrCard = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false }));
+  placeInFront(xrCard);
+}
+function showXRVideo(videoEl, title) {
+  hideXRCard();
+  const tex = new THREE.VideoTexture(videoEl); tex.colorSpace = THREE.SRGBColorSpace;
+  const ar = videoEl.videoWidth && videoEl.videoHeight ? videoEl.videoWidth / videoEl.videoHeight : 16 / 9;
+  xrCard = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8 / ar), new THREE.MeshBasicMaterial({ map: tex, depthTest: false }));
+  placeInFront(xrCard, 2); videoEl.play().catch(() => {});
+}
+function hideXRCard() { if (xrCard) { world.remove(xrCard); xrCard.material.map?.dispose(); xrCard = null; } }
+const controllers = [0, 1].map(i => {
+  const c = renderer.xr.getController(i);
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -8)]), new THREE.LineBasicMaterial({ color: 0xf07a2a }));
+  c.add(line); rig.add(c);
+  c.addEventListener("select", () => {
+    ray.camera = renderer.xr.getCamera();
+    const m = new THREE.Matrix4().extractRotation(c.matrixWorld);
+    ray.ray.origin.setFromMatrixPosition(c.matrixWorld); ray.ray.direction.set(0, 0, -1).applyMatrix4(m); ray.far = Infinity;
+    if (xrGuide) { const gh = ray.intersectObject(xrGuide, false)[0]; if (gh) { xrGuidePress(gh.uv); return; } }
+    if (xrVPanel) { const vh = ray.intersectObject(xrVPanel, false)[0]; if (vh) { xrVideoPress(vh.uv); return; } }
+    if (xrCard) { closeCard(); hideBim(); return; }
+    const hit = ray.intersectObjects(xrGroup.children)[0]; if (hit) { activate(hit.object.userData.h); return; }
+    if (M) { const mh = ray.intersectObjects(M.meshes, false)[0]; if (mh) showBim(mh); }
+  });
+  return c;
+});
+let snapLatch = false;
+function xrLocomotion(dt) {
+  const s = renderer.xr.getSession(); if (!s || !M) return;
+  let fwd = 0, strafe = 0, turn = 0;
+  for (const src of s.inputSources) {
+    const gp = src.gamepad; if (!gp || gp.axes.length < 4) continue;
+    const x = gp.axes[2], y = gp.axes[3];
+    if (src.handedness === "left") { if (Math.abs(y) > 0.15) fwd = -y; if (Math.abs(x) > 0.15) strafe = x; }
+    else if (src.handedness === "right") turn = x;
+  }
+  if (Math.abs(turn) > 0.7 && !snapLatch) { snapLatch = true; rig.rotation.y -= Math.sign(turn) * deg(30); }
+  if (Math.abs(turn) < 0.3) snapLatch = false;
+  const q = renderer.xr.getCamera().getWorldQuaternion(new THREE.Quaternion());
+  const d = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
+  walk(dt, fwd, strafe, rad(Math.atan2(d.x, -d.z)));
+}
+async function enterVR() {
+  if (!cur) { toast("Voeg eerst inhoud toe."); return; }
+  if (!navigator.xr || !(await navigator.xr.isSessionSupported("immersive-vr").catch(() => false))) { showHelp(); return; }
+  try {
+    const s = await navigator.xr.requestSession("immersive-vr", { optionalFeatures: ["local-floor"] });
+    await renderer.xr.setSession(s);
+    if (M && view !== "walk") startWalk();
+    rig.rotation.y = -deg(yaw); camera.position.set(0, 0, 0); camera.rotation.set(0, 0, 0);
+    buildXRMarkers();
+    if (guide.on) setTimeout(() => { faceInXR(route()[guide.i]); showXRGuide(); }, 300);
+    s.addEventListener("end", () => { hideXRCard(); hideXRGuide(); rig.rotation.set(0, 0, 0); if (view === "walk") camera.position.set(0, EYE, 0); resize(); });
+  } catch (e) { showHelp(e.message); }
+}
+function showHelp(msg) {
+  const body = $("#cardBody");
+  body.innerHTML = `<h3>VR op de Quest</h3><p>VR start alleen in de browser van een VR-bril, op een pagina via https of localhost.</p><p>1. Klik in Bewerken op <b>Exporteren</b>. Je krijgt één HTML-bestand met alles erin.\n2. Zet dat bestand in de map van de VR-viewer starter en scan de QR-code met de Quest.\n3. Open de tour en tik op <b>VR-bril</b>.\n\nIn VR: richt de straal en druk op de trigger om een icoontje te openen. In een BIM-model stap je met de linker stick en draai je met de rechter stick.</p><p class="hint"></p><div class="row"><button class="btn">Sluiten</button></div>`;
+  body.querySelector(".hint").textContent = msg ? "Melding van de browser: " + msg : "Deze browser of dit venster ondersteunt geen WebXR.";
+  body.querySelector("button").onclick = closeCard; $("#card").hidden = false;
+}
+$("#vrBtn").onclick = enterVR;
+
+/* ---------- shared audio recorder ---------- */
+let rec = null;
+async function recordAudio(owner, onDone) {
+  if (rec) { rec.stop(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mr = new MediaRecorder(stream, { audioBitsPerSecond: 32000 }); const chunks = [];
+    mr.ondataavailable = ev => { if (ev.data.size) chunks.push(ev.data); };
+    mr.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop()); rec = null;
+      onDone(await readAsDataURL(new Blob(chunks, { type: mr.mimeType || "audio/webm" })));
+      save(); render(); toast("Opname bewaard");
+    };
+    rec = mr; rec.owner = owner; mr.start(); render(); toast("Opname loopt… klik op Stop opname als je klaar bent");
+  } catch (err) {
+    rec = null; render();
+    toast("Opnemen lukt hier niet: geen toegang tot de microfoon. Kies een audiobestand, bijvoorbeeld een spraakmemo van je gsm.");
+  }
+}
+
+/* ---------- 360° video engine ---------- */
+const vid = document.createElement("video");
+vid.playsInline = true; vid.setAttribute("playsinline", ""); vid.preload = "auto";
+const videoTex = new THREE.VideoTexture(vid); videoTex.colorSpace = THREE.SRGBColorSpace;
+const blobUrlCache = new Map();
+const vState = { lastT: 0, fired: new Set(), resume: false, srcKey: "", triedData: false };
+const fmtT = t => { t = Math.max(0, +t || 0); const m = Math.floor(t / 60), x = Math.floor(t % 60); return `${m}:${String(x).padStart(2, "0")}`; };
+const parseT = str => { const m = String(str).trim().match(/^(?:(\d+):)?(\d+(?:[.,]\d+)?)$/); return m ? (+(m[1] || 0)) * 60 + parseFloat(m[2].replace(",", ".")) : null; };
+const hsVisible = h => !isVideo(cur) || h.t0 == null || (mode === "edit" && selHs === h) || (vid.currentTime >= h.t0 - 0.05 && vid.currentTime <= (h.t1 ?? 1e9));
+async function videoURL(s) {
+  if (!s.video) throw new Error("geen videobestand");
+  if (s.video.startsWith("idb:")) {
+    const k = s.video.slice(4);
+    if (blobUrlCache.has(k)) return blobUrlCache.get(k);
+    const b = await lib.get("blobs", k); if (!b) throw new Error("het videobestand zit niet (meer) in deze browser");
+    const u = URL.createObjectURL(b); blobUrlCache.set(k, u); return u;
+  }
+  return s.video;
+}
+function stopVideo() { try { vid.pause(); } catch (e) {} vState.resume = false; }
+function resetVideo() {
+  stopVideo(); vid.removeAttribute("src"); try { vid.load(); } catch (e) {} vState.srcKey = "";
+  for (const u of blobUrlCache.values()) URL.revokeObjectURL(u); blobUrlCache.clear();
+}
+async function loadVideoScene(s) {
+  const url = await videoURL(s);
+  vState.triedData = false;
+  if (vState.srcKey !== s.id + "|" + url) { vid.src = url; vState.srcKey = s.id + "|" + url; }
+  sphereMat.map = videoTex; sphereMat.needsUpdate = true;
+  await new Promise(ok => { if (vid.readyState >= 1) ok(); else { vid.addEventListener("loadedmetadata", ok, { once: true }); vid.addEventListener("error", ok, { once: true }); setTimeout(ok, 15000); } });
+  try { vid.currentTime = 0; } catch (e) {}
+  vState.lastT = 0; vState.fired.clear();
+  if (vid.duration && Math.abs((s.duration || 0) - vid.duration) > 0.5) s.duration = vid.duration;
+  if (!s.thumb) {
+    const grab = () => { try { if (cur !== s) return; const c = document.createElement("canvas"); c.width = 240; c.height = 120; c.getContext("2d").drawImage(vid, 0, 0, 240, 120); s.thumb = c.toDataURL("image/jpeg", 0.7); save(); renderSide(); } catch (e) {} };
+    if (vid.readyState >= 2) grab(); else vid.addEventListener("loadeddata", grab, { once: true });
+  }
+  renderVbar();
+}
+function playVideo() { if (!isVideo(cur)) return; vid.play().catch(() => {}).finally(renderVbar); }
+vid.addEventListener("play", () => renderVbar());
+vid.addEventListener("pause", () => renderVbar());
+vid.addEventListener("loadedmetadata", () => renderVbar());
+vid.addEventListener("seeked", () => {
+  const t = vid.currentTime;
+  for (const h of (isVideo(cur) ? cur.hotspots : [])) if (h.t0 != null && h.t0 >= t - 0.06) vState.fired.delete(h.id);
+  vState.lastT = t; updateVbarTime(t, true);
+});
+vid.addEventListener("error", async () => {
+  if (!isVideo(cur) || !vid.getAttribute("src")) return;
+  const s = cur;
+  if (s.video?.startsWith("idb:") && !vState.triedData) {
+    vState.triedData = true;
+    const b = await lib.get("blobs", s.video.slice(4));
+    if (b && b.size < 300 * 1048576) { vid.src = await readAsDataURL(b); return; }
+  }
+  toast("Deze video kan hier niet afgespeeld worden. Exporteer in Insta360 Studio als mp4 met H.264 (niet H.265), of gebruik de lokale versie van Werftour.");
+});
+vid.addEventListener("ended", () => {
+  if (!isVideo(cur) || mode !== "view") return;
+  const i = tour.scenes.indexOf(cur), next = tour.scenes.slice(i + 1).find(isVideo);
+  if (next && tour.autoNext !== false) { go(next.id).then(playVideo); return; }
+  const q = tour.scenes.flatMap(s => s.hotspots).filter(h => h.type === "quiz");
+  const done = q.filter(h => h.id in answers), good = done.filter(h => answers[h.id]);
+  const b = $("#cardBody");
+  b.innerHTML = `<h3>Einde van de video</h3><p></p><div class="row"><button class="btn primary" id="vAgain">Opnieuw bekijken</button><button class="btn" id="vClose">Sluiten</button></div>`;
+  b.querySelector("p").textContent = (done.length ? `Vragen: ${good.length} van ${done.length} juist beantwoord. ` : "") + "Je kan de tijdlijn gebruiken om een stuk opnieuw te bekijken.";
+  $("#vAgain").onclick = async () => { closeCard(); const firstV = tour.scenes.find(isVideo); if (firstV && firstV !== cur) await go(firstV.id); else { vid.currentTime = 0; } playVideo(); };
+  $("#vClose").onclick = closeCard; $("#card").hidden = false;
+});
+function videoTick() {
+  const t = vid.currentTime;
+  if (mode === "view" && !vid.paused && !vid.seeking && $("#card").hidden) {
+    for (const h of cur.hotspots) {
+      if (h.pause && h.t0 != null && !vState.fired.has(h.id) && vState.lastT < h.t0 && t >= h.t0) {
+        vState.fired.add(h.id); activate(h); break;
+      }
+    }
+  }
+  vState.lastT = t;
+  updateVbarTime(t);
+}
+let lastVT = -1;
+function updateVbarTime(t, force) {
+  if (!force && Math.abs(t - lastVT) < 0.25) return; lastVT = t;
+  const d = vid.duration || cur?.duration || 0;
+  $("#vTime").textContent = `${fmtT(t)} / ${fmtT(d)}`;
+  if (document.activeElement !== $("#vSeek")) $("#vSeek").value = t;
+}
+function renderVbar() {
+  const on = screen === "app" && isVideo(cur);
+  $("#vbar").hidden = !on; stage.classList.toggle("hasvbar", on);
+  $("#vBig").hidden = !on || mode === "edit" || !vid.paused || !$("#card").hidden || guide.on;
+  if (!on) return;
+  $("#vPlay").textContent = vid.paused ? "▶" : "❚❚"; $("#vPlay").setAttribute("aria-label", vid.paused ? "Afspelen" : "Pauzeren");
+  $("#vMute").textContent = vid.muted ? "Geluid aan" : "Dempen";
+  const d = vid.duration || cur.duration || 0; $("#vSeek").max = d || 1;
+  const parts = tour.scenes.filter(isVideo), i = tour.scenes.indexOf(cur), next = tour.scenes.slice(i + 1).find(isVideo);
+  $("#vPart").textContent = parts.length > 1 ? `Deel ${parts.indexOf(cur) + 1} van ${parts.length}` : "";
+  $("#vNext").hidden = !next;
+  const tk = $("#vTicks"); tk.innerHTML = "";
+  if (d) for (const h of cur.hotspots) if (h.t0 != null) {
+    const e = document.createElement("i"); e.style.left = `calc(8px + (100% - 16px) * ${clamp(h.t0 / d, 0, 1)})`;
+    e.style.background = (TYPES[h.type] || TYPES.info).color; e.title = `${h.title || ""} · ${fmtT(h.t0)}`; tk.appendChild(e);
+  }
+  updateVbarTime(vid.currentTime, true);
+}
+$("#vPlay").onclick = () => (vid.paused ? playVideo() : vid.pause());
+$("#vBig").onclick = () => playVideo();
+$("#vSeek").addEventListener("input", e => { vid.currentTime = +e.target.value; });
+$("#vBack").onclick = () => { vid.currentTime = Math.max(0, vid.currentTime - 10); };
+$("#vMute").onclick = () => { vid.muted = !vid.muted; renderVbar(); };
+$("#vNext").onclick = () => { const i = tour.scenes.indexOf(cur), next = tour.scenes.slice(i + 1).find(isVideo); if (next) go(next.id).then(playVideo); };
+
+/* video controls in VR: a small panel that follows your gaze lazily */
+let xrVPanel = null, xrVCanvas = null, xrVTex = null, xrVLast = 0, xrVDir = null;
+function updateXRVideoPanel(now) {
+  const want = renderer.xr.isPresenting && isVideo(cur) && screen === "app";
+  if (!want) { if (xrVPanel) { world.remove(xrVPanel); xrVTex.dispose(); xrVPanel = null; xrVDir = null; } return; }
+  if (!xrVPanel) {
+    xrVCanvas = document.createElement("canvas"); xrVCanvas.width = 1024; xrVCanvas.height = 160;
+    xrVTex = new THREE.CanvasTexture(xrVCanvas); xrVTex.colorSpace = THREE.SRGBColorSpace;
+    xrVPanel = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.1875), new THREE.MeshBasicMaterial({ map: xrVTex, transparent: true, depthTest: false }));
+    xrVPanel.renderOrder = 4; world.add(xrVPanel); xrVLast = 0;
+  }
+  if (now - xrVLast < 300) return; xrVLast = now;
+  const cam = renderer.xr.getCamera(), head = new THREE.Vector3().setFromMatrixPosition(cam.matrixWorld);
+  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.getWorldQuaternion(new THREE.Quaternion())); fwd.y = 0; fwd.normalize();
+  if (!xrVDir || xrVDir.angleTo(fwd) > deg(55)) xrVDir = fwd.clone();
+  xrVPanel.position.copy(head).addScaledVector(xrVDir, 1.3); xrVPanel.position.y = head.y - 0.55;
+  xrVPanel.lookAt(head.x, head.y - 0.3, head.z);
+  const g = xrVCanvas.getContext("2d"), d = vid.duration || cur.duration || 1, t = vid.currentTime;
+  g.clearRect(0, 0, 1024, 160); g.fillStyle = "rgba(12,16,19,.92)"; g.fillRect(0, 0, 1024, 160);
+  g.fillStyle = "rgba(255,255,255,.14)"; g.fillRect(8, 20, 184, 120); g.fillRect(208, 20, 184, 120);
+  const nxt = tour.scenes.slice(tour.scenes.indexOf(cur) + 1).find(isVideo); if (nxt) g.fillRect(832, 20, 184, 120);
+  g.fillStyle = "#fff"; g.font = "600 40px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText("↺ 10 s", 100, 80); g.fillText(vid.paused ? "▶" : "❚❚", 300, 80); if (nxt) g.fillText("Deel ▶", 924, 80);
+  g.fillStyle = "rgba(255,255,255,.25)"; g.fillRect(420, 74, 384, 12); g.fillStyle = "#f07a2a"; g.fillRect(420, 74, 384 * clamp(t / d, 0, 1), 12);
+  for (const h of cur.hotspots) if (h.t0 != null) { g.fillStyle = (TYPES[h.type] || TYPES.info).color; g.beginPath(); g.arc(420 + 384 * clamp(h.t0 / d, 0, 1), 80, 9, 0, 7); g.fill(); }
+  g.fillStyle = "#d9e1e6"; g.font = "28px monospace"; g.fillText(`${fmtT(t)} / ${fmtT(d)}`, 612, 125);
+  xrVTex.needsUpdate = true;
+}
+function xrVideoPress(uv) {
+  const x = uv.x * 1024;
+  if (x < 200) vid.currentTime = Math.max(0, vid.currentTime - 10);
+  else if (x < 400) (vid.paused ? playVideo() : vid.pause());
+  else if (x > 824) $("#vNext").click();
+  else vid.currentTime = clamp((x - 420) / 384, 0, 1) * (vid.duration || 0);
+  xrVLast = 0;
+}
+
+/* ---------- guided tour (rondleiding) ---------- */
+const guide = { on: false, i: 0, tween: null, playing: false, timer: 0, tok: 0 };
+let selStep = null;
+const route = () => (tour ? (tour.route = tour.route || []) : []);
+const audioEl = new Audio(); audioEl.preload = "auto";
+audioEl.addEventListener("play", () => { guide.playing = true; renderGuideBar(); });
+audioEl.addEventListener("pause", () => { guide.playing = false; renderGuideBar(); });
+let ttsVoice = null;
+function pickVoice() { try { const vs = speechSynthesis.getVoices(); ttsVoice = vs.find(v => /^nl[-_]BE/i.test(v.lang)) || vs.find(v => /^nl/i.test(v.lang)) || null; } catch (e) {} }
+const hasTTS = "speechSynthesis" in window;
+if (hasTTS) { pickVoice(); try { speechSynthesis.addEventListener("voiceschanged", pickVoice); } catch (e) {} }
+const gA = new THREE.Vector3(), gB = new THREE.Vector3(), gT = new THREE.Vector3();
+const r3 = x => +x.toFixed(3), r1 = x => +x.toFixed(1);
+function captureView() {
+  if (!M) return { yaw: r1(yaw), pitch: r1(pitch) };
+  if (view === "orbit") return { mode: "orbit", yaw: r1(orbit.yaw), pitch: r1(orbit.pitch), dist: r3(orbit.dist), target: orbit.target.toArray().map(r3) };
+  return { mode: "walk", pos: player.toArray().map(r3), yaw: r1(yaw), pitch: r1(pitch) };
+}
+function applyView(v) {
+  if (!M || !v.mode) { yaw = v.yaw; pitch = v.pitch; return; }
+  if (v.mode === "orbit") { orbit.yaw = v.yaw; orbit.pitch = v.pitch; orbit.dist = v.dist; orbit.target.fromArray(v.target); setView("orbit"); }
+  else { player.fromArray(v.pos); yaw = v.yaw; pitch = v.pitch; setView("walk"); dropToFloor(true); }
+}
+const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const lerpAngle = (a, b, t) => a + ((((b - a) % 360) + 540) % 360 - 180) * t;
+function tweenTo(v) {
+  const sameMode = (!M && !v.mode) || (M && v.mode === view);
+  const far = M && v.mode === "walk" && player.distanceTo(gT.fromArray(v.pos)) > 14;
+  if (!sameMode || far || matchMedia("(prefers-reduced-motion: reduce)").matches) { applyView(v); guide.tween = null; return; }
+  guide.tween = { to: v, t0: performance.now(), ms: 1400, from: { yaw, pitch, oyaw: orbit.yaw, opitch: orbit.pitch, dist: orbit.dist, target: orbit.target.clone(), pos: player.clone() } };
+}
+function stepTween(now) {
+  const tw = guide.tween, f = tw.from, v = tw.to;
+  const k = Math.min(1, (now - tw.t0) / tw.ms), e = ease(k);
+  if (!v.mode) { yaw = lerpAngle(f.yaw, v.yaw, e); pitch = f.pitch + (v.pitch - f.pitch) * e; }
+  else if (v.mode === "orbit") { orbit.yaw = lerpAngle(f.oyaw, v.yaw, e); orbit.pitch = f.opitch + (v.pitch - f.opitch) * e; orbit.dist = f.dist + (v.dist - f.dist) * e; orbit.target.lerpVectors(f.target, gT.fromArray(v.target), e); }
+  else { player.lerpVectors(f.pos, gT.fromArray(v.pos), e); yaw = lerpAngle(f.yaw, v.yaw, e); pitch = f.pitch + (v.pitch - f.pitch) * e; }
+  if (k >= 1) { guide.tween = null; if (M && v.mode === "walk") dropToFloor(true); }
+}
+function focusPoint(s) {
+  const h = s.hotspot && scene(s.scene)?.hotspots.find(x => x.id === s.hotspot);
+  if (h) return h.pos ? new THREE.Vector3().fromArray(h.pos) : dirFrom(h.yaw, h.pitch).multiplyScalar(100);
+  const v = s.view;
+  if (!v.mode) return dirFrom(v.yaw, v.pitch).multiplyScalar(100);
+  if (v.mode === "orbit") return new THREE.Vector3().fromArray(v.target);
+  return new THREE.Vector3().fromArray(v.pos).add(new THREE.Vector3(0, EYE, 0)).addScaledVector(dirFrom(v.yaw, v.pitch), 10);
+}
+function startGuide(i = 0) {
+  if (!route().length) return;
+  if (mode === "edit") { mode = "view"; selHs = null; moving = false; hidePicker(); }
+  guide.on = true; gotoStep(i);
+}
+function stopGuide() {
+  if (!guide.on) return;
+  guide.on = false; guide.tween = null; stopNarration(); hideXRGuide(); render();
+}
+async function gotoStep(i) {
+  const r = route(); if (!r.length) return;
+  guide.i = clamp(i, 0, r.length - 1); const s = r[guide.i], my = guide.i;
+  stopNarration(); closeCard(); hideBim();
+  if (!scene(s.scene)) { toast("Het standpunt van deze stap bestaat niet meer."); return; }
+  if (!cur || cur.id !== s.scene) { await go(s.scene, true); if (guide.i !== my || !guide.on) return; applyView(s.view); }
+  else tweenTo(s.view);
+  if (renderer.xr.isPresenting) faceInXR(s);
+  render(); showXRGuide();
+  narrate(s);
+  if (s.open && s.hotspot) setTimeout(() => { const h = cur?.hotspots.find(x => x.id === s.hotspot); if (h && guide.on && guide.i === my) activate(h); }, 1600);
+}
+function nextStep() { if (!guide.on) return; if (guide.i < route().length - 1) gotoStep(guide.i + 1); else endGuide(); }
+function endGuide() {
+  stopGuide();
+  const q = tour.scenes.flatMap(s => s.hotspots).filter(h => h.type === "quiz");
+  const done = q.filter(h => h.id in answers), good = done.filter(h => answers[h.id]);
+  const b = $("#cardBody");
+  b.innerHTML = `<h3>Einde van de rondleiding</h3><p></p><div class="row"><button class="btn primary" id="eAgain">Opnieuw bekijken</button><button class="btn" id="eSelf">Zelf verder verkennen</button></div>`;
+  b.querySelector("p").textContent = `Je hebt alle ${route().length} stappen gezien.` + (done.length ? ` Vragen: ${good.length} van ${done.length} juist beantwoord.` : "") + " Klik nu zelf op de icoontjes om verder te verkennen.";
+  $("#eAgain").onclick = () => { closeCard(); startGuide(0); }; $("#eSelf").onclick = closeCard;
+  $("#card").hidden = false;
+}
+function stopNarration() {
+  guide.tok++; clearTimeout(guide.timer);
+  audioEl.onended = null; try { audioEl.pause(); } catch (e) {}
+  if (hasTTS) try { speechSynthesis.cancel(); } catch (e) {}
+  guide.playing = false;
+}
+function narrate(s, preview = false) {
+  stopNarration();
+  const tok = guide.tok;
+  const auto = () => !preview && guide.on && tour.guideAuto !== false;
+  const done = () => { if (tok !== guide.tok) return; guide.playing = false; renderGuideBar(); showXRGuide(); if (auto()) guide.timer = setTimeout(nextStep, 1800); };
+  if (s.audio) {
+    audioEl.src = s.audio; audioEl.onended = done;
+    audioEl.play().catch(() => { guide.playing = false; renderGuideBar(); });
+  } else if (tour.tts !== false && hasTTS && s.text) {
+    const u = new SpeechSynthesisUtterance(s.text);
+    u.lang = ttsVoice?.lang || "nl-BE"; if (ttsVoice) u.voice = ttsVoice;
+    const words = s.text.split(/\s+/).length, t0 = performance.now(), readMs = Math.max(6000, words * 420);
+    const ttsDone = () => {
+      if (tok !== guide.tok) return;
+      const el = performance.now() - t0;
+      if (el < words * 200) { guide.playing = false; renderGuideBar(); if (auto()) guide.timer = setTimeout(() => { if (tok === guide.tok) nextStep(); }, Math.max(1500, readMs - el)); return; }
+      done();
+    };
+    u.onend = ttsDone; u.onerror = ttsDone;
+    speechSynthesis.speak(u); guide.playing = true;
+  } else if (auto()) {
+    guide.timer = setTimeout(() => { if (tok === guide.tok) nextStep(); }, Math.max(6000, (s.text || "").split(/\s+/).length * 420));
+  }
+  renderGuideBar();
+}
+function renderGuideBar() {
+  const r = route(), on = guide.on, s = r[guide.i];
+  $("#gBar").hidden = !on; stage.classList.toggle("guiding", on);
+  $("#gStart").hidden = on || !r.length || mode !== "view" || screen !== "app" || !cur;
+  $("#gStart").textContent = `▶ Start de rondleiding (${r.length} ${r.length === 1 ? "stap" : "stappen"})`;
+  if (!on || !s) return;
+  $("#gStep").textContent = `${guide.i + 1} / ${r.length}`;
+  $("#gTitle").textContent = s.title || "";
+  $("#gText").textContent = s.text || "";
+  $("#gPrev").disabled = guide.i === 0;
+  $("#gNext").textContent = guide.i === r.length - 1 ? "Afronden ✓" : "Volgende ▶";
+  $("#gPlay").hidden = !(s.audio || (tour.tts !== false && hasTTS && s.text));
+  $("#gPlay").textContent = guide.playing ? "❚❚ Pauze" : "▶ Beluister";
+  $("#gAuto").checked = tour.guideAuto !== false;
+  $("#gProg").style.width = ((guide.i + 1) / r.length * 100) + "%";
+}
+$("#gStart").onclick = () => startGuide(0);
+$("#guideStartBtn").onclick = () => startGuide(0);
+$("#gClose").onclick = stopGuide;
+$("#gPrev").onclick = () => gotoStep(guide.i - 1);
+$("#gNext").onclick = () => nextStep();
+$("#gPlay").onclick = () => { if (guide.playing) { stopNarration(); renderGuideBar(); showXRGuide(); } else narrate(route()[guide.i], true); };
+$("#gAuto").onchange = e => { tour.guideAuto = e.target.checked; save(); if (!e.target.checked) clearTimeout(guide.timer); };
+function updateArrow() {
+  const el = $("#gArrow");
+  const s = guide.on ? route()[guide.i] : null;
+  if (!s || guide.tween || renderer.xr.isPresenting || !cur || s.scene !== cur.id || !$("#card").hidden || (M && view === "orbit")) { el.hidden = true; return; }
+  const p = focusPoint(s);
+  camera.getWorldPosition(gA); camera.getWorldDirection(gB);
+  const to = p.clone().sub(gA).normalize();
+  if (rad(Math.acos(clamp(gB.dot(to), -1, 1))) < 30) { el.hidden = true; return; }
+  const n = p.clone().project(camera); let x = n.x, y = n.y;
+  if (n.z > 1) { x = -x; y = -y; }
+  const a = Math.atan2(y, x), w = stage.clientWidth, h = stage.clientHeight;
+  el.style.left = (w / 2 + Math.cos(a) * (w / 2 - 60)) + "px";
+  el.style.top = (h / 2 - Math.sin(a) * (h / 2 - 70)) + "px";
+  el.style.setProperty("--rot", (-a) + "rad");
+  el.hidden = false;
+}
+function showWelcome() {
+  const b = $("#cardBody");
+  b.innerHTML = `<h3></h3><p></p><p class="hint">Zet je geluid aan: bij elke stap hoor je uitleg. Je kan altijd stoppen en zelf verder verkennen.</p><div class="row"><button class="btn primary" id="wStart">▶ Start de rondleiding</button><button class="btn" id="wSelf">Zelf verkennen</button></div>`;
+  b.querySelector("h3").textContent = tour.title || "Rondleiding";
+  b.querySelector("p").textContent = `Een begeleide tocht van ${route().length} ${route().length === 1 ? "stap" : "stappen"} langs ${new Set(route().map(s => s.scene)).size} ${isBim() ? "plaatsen" : "standpunten"}.`;
+  $("#wStart").onclick = () => { closeCard(); startGuide(0); };
+  $("#wSelf").onclick = closeCard;
+  $("#card").hidden = false; $("#wStart").focus();
+}
+function faceInXR(s) {
+  const cam = renderer.xr.getCamera();
+  const head = s.view.mode === "walk" ? new THREE.Vector3().fromArray(s.view.pos).add(new THREE.Vector3(0, EYE, 0)) : new THREE.Vector3().setFromMatrixPosition(cam.matrixWorld);
+  const d = focusPoint(s).sub(head);
+  const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), "YXZ");
+  rig.rotation.y = -Math.atan2(d.x, -d.z) - (e.y - rig.rotation.y);
+}
+let xrGuide = null;
+function hideXRGuide() { if (xrGuide) { world.remove(xrGuide); xrGuide.material.map.dispose(); xrGuide = null; } }
+function showXRGuide() {
+  hideXRGuide();
+  if (!guide.on || !renderer.xr.isPresenting) return;
+  const r = route(), s = r[guide.i]; if (!s) return;
+  const c = document.createElement("canvas"); c.width = 1024; c.height = 420; const g = c.getContext("2d");
+  g.fillStyle = "rgba(12,16,19,.94)"; g.fillRect(0, 0, 1024, 420);
+  g.fillStyle = "#f07a2a"; g.fillRect(0, 0, 1024 * (guide.i + 1) / r.length, 8);
+  g.fillStyle = "#fff"; g.font = "600 42px sans-serif"; g.fillText(`${guide.i + 1}/${r.length}  ${s.title || ""}`.slice(0, 42), 40, 70);
+  g.font = "31px sans-serif"; let y = 122, lines = 0, line = "";
+  for (const w of (s.text || "").split(" ")) { if (g.measureText(line + w).width > 944) { g.fillText(line, 40, y); y += 40; line = ""; if (++lines >= 5) break; } line += w + " "; }
+  if (lines < 5) g.fillText(line, 40, y);
+  g.fillStyle = "rgba(255,255,255,.14)"; g.fillRect(0, 340, 330, 80); g.fillRect(347, 340, 330, 80); g.fillRect(694, 340, 330, 80);
+  g.fillStyle = "#fff"; g.font = "600 34px sans-serif"; g.textAlign = "center";
+  g.fillText("◀ Vorige", 165, 392); g.fillText(guide.playing ? "❚❚ Pauze" : "▶ Beluister", 512, 392);
+  g.fillStyle = "#f07a2a"; g.fillText(guide.i === r.length - 1 ? "Afronden ✓" : "Volgende ▶", 859, 392);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  xrGuide = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.574), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false }));
+  xrGuide.renderOrder = 4;
+  const cam = renderer.xr.getCamera();
+  const head = s.view.mode === "walk" ? new THREE.Vector3().fromArray(s.view.pos).add(new THREE.Vector3(0, EYE, 0)) : new THREE.Vector3().setFromMatrixPosition(cam.matrixWorld);
+  const d = focusPoint(s).sub(head); d.y = 0; d.normalize();
+  xrGuide.position.copy(head).addScaledVector(d, 1.4); xrGuide.position.y = head.y - 0.5;
+  xrGuide.lookAt(head.x, head.y - 0.2, head.z);
+  world.add(xrGuide);
+}
+function xrGuidePress(uv) { if (uv.y > 80 / 420) return; if (uv.x < 0.33) gotoStep(guide.i - 1); else if (uv.x > 0.67) nextStep(); else $("#gPlay").onclick(); }
+
+const stepLabel = s => scene(s.scene)?.name || "?";
+function renderGuideSide() {
+  if (!tour) return;
+  const r = route(), edit = mode === "edit" && !viewerOnly;
+  $("#guideSec").hidden = (!edit && !r.length) || (edit && !tour.scenes.length) || isVid();
+  $("#guideHead").textContent = isBim() ? "Rondleiding (optioneel)" : "Rondleiding";
+  $("#stepCount").textContent = r.length ? r.length + (r.length === 1 ? " stap" : " stappen") : "";
+  $("#guideStartBtn").hidden = !r.length || guide.on || edit;
+  $("#guideHint").textContent = r.length
+    ? (edit ? "Klik op een stap om ze te bewerken. Een stap onthoudt het standpunt en de kijkrichting." : "Een begeleide tocht met gesproken uitleg.")
+    : (isBim() ? "Optioneel: leid de kijker langs vaste plekken in het model. Ga naar een plek en klik op ‘Huidig beeld als stap’." : "Ga naar een standpunt, draai naar wat je wil tonen en klik op ‘Huidig beeld als stap’.");
+  const list = $("#stepList"); list.innerHTML = "";
+  r.forEach((s, i) => {
+    const b = document.createElement("button"); b.className = "hs-item";
+    b.setAttribute("aria-current", edit ? s === selStep : (guide.on && guide.i === i));
+    b.innerHTML = `<span class="num"></span><span class="t"></span><span class="coord"></span>`;
+    b.querySelector(".num").textContent = i + 1;
+    b.querySelector(".t").textContent = s.title || "(zonder titel)";
+    b.querySelector(".coord").textContent = s.audio ? "opname" : s.text ? "tekst" : "";
+    b.title = stepLabel(s);
+    b.onclick = () => { if (edit) { selStep = s; render(); setTimeout(() => reveal($("#stepEditor")), 30); } else startGuide(i); };
+    list.appendChild(b);
+  });
+  $("#optTts").checked = tour.tts !== false; $("#optAuto").checked = tour.guideAuto !== false; $("#optStart").checked = !!tour.guideAutostart;
+  $("#addStep").disabled = !cur;
+  const ed = $("#stepEditor");
+  if (selStep && !r.includes(selStep)) selStep = null;
+  ed.hidden = !edit || !selStep;
+  if (ed.hidden) return;
+  const s = selStep, idx = r.indexOf(s);
+  $("#stepNo").textContent = `${idx + 1} van ${r.length} · ${stepLabel(s)}`;
+  const setv = (id, v) => { const el = $(id); if (document.activeElement !== el) el.value = v ?? ""; };
+  setv("#stTitle", s.title); setv("#stText", s.text);
+  const sel = $("#stHs"); sel.innerHTML = ""; sel.appendChild(new Option("Geen: midden van het beeld", ""));
+  for (const h of scene(s.scene)?.hotspots || []) sel.appendChild(new Option(h.title || TYPES[h.type]?.label, h.id));
+  sel.value = s.hotspot || "";
+  $("#stOpen").checked = !!s.open; $("#stOpen").disabled = !s.hotspot;
+  $("#stAudioState").textContent = s.audio ? `Ingesproken opname (${fmtMB(s.audio.length * 0.75)}).` : (tour.tts !== false ? "Geen opname: de tekst wordt voorgelezen door de browser." : "Geen opname: de tekst verschijnt enkel als ondertitel.");
+  $("#stRec").textContent = rec && rec.owner === s ? "■ Stop opname" : "● Opnemen"; $("#stRec").classList.toggle("rec", !!(rec && rec.owner === s));
+  $("#stAudioDelWrap").innerHTML = s.audio ? '<button class="btn small danger" id="stAudioDel">Opname weg</button>' : "";
+  if (s.audio) $("#stAudioDel").onclick = () => { delete s.audio; save(); render(); };
+  $("#stUp").disabled = idx === 0; $("#stDown").disabled = idx === r.length - 1;
+  $("#stDelWrap").innerHTML = '<button class="btn small danger" id="stDel">Verwijder</button>';
+  $("#stDel").onclick = () => confirmInline("#stDelWrap", "Stap verwijderen?", () => { tour.route = r.filter(x => x !== s); selStep = null; save(); render(); });
+}
+$("#addStep").onclick = () => {
+  if (!cur) return;
+  const s = { id: uid(), scene: cur.id, view: captureView(), title: selHs?.title || cur.name, text: "" };
+  if (selHs) s.hotspot = selHs.id;
+  route().push(s); selStep = s; save(); render();
+  setTimeout(() => { reveal($("#stepEditor")); $("#stText").focus({ preventScroll: true }); }, 30);
+  toast("Stap toegevoegd met het huidige beeld. Typ nu de uitleg.");
+};
+const bindSt = (id, fn, ev = "input") => $(id).addEventListener(ev, e => { if (!selStep) return; fn(e.target); save(); render(); });
+bindSt("#stTitle", t => selStep.title = t.value);
+bindSt("#stText", t => selStep.text = t.value);
+bindSt("#stHs", t => { if (t.value) selStep.hotspot = t.value; else { delete selStep.hotspot; delete selStep.open; } }, "change");
+bindSt("#stOpen", t => selStep.open = t.checked, "change");
+$("#optTts").onchange = e => { tour.tts = e.target.checked; save(); render(); };
+$("#optAuto").onchange = e => { tour.guideAuto = e.target.checked; save(); render(); };
+$("#optStart").onchange = e => { tour.guideAutostart = e.target.checked; save(); render(); };
+$("#stRecapture").onclick = () => {
+  if (!selStep || !cur) return;
+  if (selStep.scene !== cur.id) { selStep.scene = cur.id; delete selStep.hotspot; delete selStep.open; }
+  selStep.view = captureView(); save(); render(); toast("Stap gebruikt nu het huidige beeld");
+};
+$("#stUp").onclick = () => { const r = route(), i = r.indexOf(selStep); if (i > 0) { [r[i - 1], r[i]] = [r[i], r[i - 1]]; save(); render(); } };
+$("#stDown").onclick = () => { const r = route(), i = r.indexOf(selStep); if (i < r.length - 1) { [r[i + 1], r[i]] = [r[i], r[i + 1]]; save(); render(); } };
+$("#stPreview").onclick = () => { if (selStep) startGuide(route().indexOf(selStep)); };
+$("#stListen").onclick = () => { if (!selStep) return; if (!selStep.audio && !(hasTTS && selStep.text)) { toast("Deze stap heeft nog geen opname of tekst."); return; } narrate(selStep, true); };
+$("#stAudioBtn").onclick = () => $("#stAudioFile").click();
+$("#stAudioFile").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f || !selStep) return;
+  if (f.size > 12 * 1048576) { toast("Dit audiobestand is groter dan 12 MB. Kort het in of exporteer als mp3."); return; }
+  selStep.audio = await readAsDataURL(f); save(); render(); toast("Audio toegevoegd aan deze stap");
+};
+$("#stRec").onclick = () => { const s = selStep; if (s) recordAudio(s, data => { s.audio = data; }); };
+
+/* ---------- loop ---------- */
+function render() {
+  renderHeader();
+  if (screen !== "app" || !tour) return;
+  renderSide(); renderMarkers(); renderGuideSide(); renderGuideBar(); renderStart(); renderEmpty(); renderBackup(); renderVbar();
+  $("#hudName").textContent = cur?.name || "";
+  $("#hudMeta").hidden = !cur;
+  const q = tour.scenes.flatMap(s => s.hotspots).filter(h => h.type === "quiz");
+  const done = q.filter(h => h.id in answers), good = done.filter(h => answers[h.id]);
+  $("#hudScore").hidden = !done.length; $("#hudScore").textContent = `Vragen: ${good.length} van ${q.length} juist`;
+}
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.1);
+  if (screen !== "app") return;
+  const xr = renderer.xr.isPresenting;
+  if (guide.tween) stepTween(performance.now());
+  if (xr) { if (M) { if (!guide.tween) xrLocomotion(dt); rig.position.copy(player); } }
+  else if (!cur) { /* empty project */ }
+  else if (view === "pano") {
+    camera.rotation.set(deg(pitch), -deg(yaw), 0);
+    const y = ((yaw % 360) + 540) % 360 - 180;
+    $("#hudMeta").textContent = `kijkrichting ${Math.round(y)}° · helling ${Math.round(pitch)}°`;
+  } else if (view === "walk" && M) {
+    const f = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
+    const st = (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0);
+    const tr = (keys.has("ArrowRight") || keys.has("KeyE") ? 1 : 0) - (keys.has("ArrowLeft") || keys.has("KeyQ") ? 1 : 0);
+    if (!guide.tween) { yaw += tr * 70 * dt; walk(dt, f, st, yaw); }
+    rig.position.copy(player); camera.position.set(0, EYE, 0); camera.rotation.set(deg(pitch), -deg(yaw), 0);
+    $("#hudMeta").textContent = `vloerpeil ${fmt(player.y - M.box.min.y)} m · ooghoogte ${EYE.toFixed(2).replace(".", ",")} m`;
+  } else if (view === "orbit" && M) {
+    rig.position.set(0, 0, 0);
+    camera.position.copy(orbit.target).add(new THREE.Vector3(Math.sin(deg(orbit.yaw)) * Math.cos(deg(orbit.pitch)), Math.sin(deg(orbit.pitch)), Math.cos(deg(orbit.yaw)) * Math.cos(deg(orbit.pitch))).multiplyScalar(orbit.dist));
+    camera.lookAt(orbit.target);
+    const sz = M.box.getSize(tmp2);
+    $("#hudMeta").textContent = `${sz.x.toFixed(1).replace(".", ",")} × ${sz.z.toFixed(1).replace(".", ",")} m · hoogte ${sz.y.toFixed(1).replace(".", ",")} m`;
+  }
+  if (isVideo(cur)) { videoTick(); if (xr) for (const sp of xrGroup.children) sp.visible = hsVisible(sp.userData.h); }
+  updateXRVideoPanel(performance.now());
+  if (!xr) positionMarkers();
+  updateArrow();
+  xrGroup.visible = xr; markersEl.style.visibility = xr ? "hidden" : "visible";
+  renderer.render(world, camera);
+});
+
+let toastT; function toast(t) { const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 4200); }
+window.addEventListener("beforeunload", () => { if (saveT) saveNow(); });
+window.__werftour = { ifcToGlb };
+
+(async () => {
+  let data = null;
+  try { data = JSON.parse($("#tour-data").textContent || "null"); } catch (e) {}
+  if (data && data.viewerOnly) { await openProject(data, { mode: "view" }); return; }
+  await migrateOld();
+  showHome();
+})();
+</script>
+
+</body>
+</html>
