@@ -1,5 +1,5 @@
 /* Werftour: network first, cache as fallback, so updates arrive immediately and the app still opens offline. */
-const CACHE = "werftour-v1";
+const CACHE = "werftour-v2";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {

@@ -232,6 +232,21 @@ input[type=file]{display:none}
 .vbig{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:88px;height:88px;border-radius:50%;border:3px solid #fff;background:rgba(226,96,12,.92);color:#fff;font-size:34px;cursor:pointer;z-index:4;box-shadow:0 8px 30px rgba(0,0,0,.4);padding-left:6px}
 .stage.hasvbar .editbar{bottom:84px}
 .stage.hasvbar .bim{bottom:84px}
+.qrwrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.qr{background:#fff;padding:8px;border-radius:8px;line-height:0;flex:none}
+.qr img{width:200px;height:200px;image-rendering:pixelated;border-radius:0;max-width:none}
+.qrtext{flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.qrtext p{margin:0;line-height:1.45}
+.qcode{font-family:var(--f-mono);font-size:34px;font-weight:500;letter-spacing:.12em;color:var(--accent);font-variant-numeric:tabular-nums}
+.qconns{display:flex;flex-direction:column;gap:8px}
+.qrow{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;font-size:13px}
+.qrow .bar{grid-column:1/-1}
+.qinput{font-family:var(--f-mono);font-size:30px;letter-spacing:.12em;text-transform:uppercase;width:9ch;padding:8px 12px;border:2px solid var(--line);border-radius:var(--r);background:var(--bg);color:var(--fg)}
+.qinput:focus{border-color:var(--accent);outline:none}
+.qhome .btn.primary{font-size:18px;padding:10px 20px}
+.vrbig{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);z-index:4;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 24px)}
+.vrbig button{border:0;border-radius:999px;padding:14px 26px;font-size:18px;font-weight:600;cursor:pointer;box-shadow:0 8px 26px rgba(0,0,0,.4);background:var(--accent);color:var(--accent-fg)}
+.vrbig button.alt{background:#fff;color:#11171b}
 @media (max-width:760px){
   main{grid-template-columns:1fr;grid-template-rows:minmax(280px,58%) 1fr}
   aside{order:2;border-right:0;border-top:1px solid var(--line)}
@@ -263,6 +278,7 @@ input[type=file]{display:none}
         <button id="modeEdit" aria-pressed="false">Bewerken</button>
       </div>
       <div class="tools">
+        <button class="btn" id="questBtn" title="Stuur deze tour naar een Meta Quest met een QR-code">Naar Quest</button>
         <button class="btn" id="vrBtn">VR-bril</button>
         <button class="btn primary" id="exportBtn" data-edit title="Eén bestand voor de Quest én je back-up">Exporteren</button>
       </div>
@@ -303,6 +319,25 @@ input[type=file]{display:none}
         <p class="hint">Je projecten worden automatisch in deze browser bewaard. Exporteer regelmatig: dat bestand is je back-up, je kan het op de Quest zetten en je kan het hier opnieuw openen om verder te werken.</p>
         <div class="plist" id="projList"></div>
         <div class="drophint">Sleep hier een geëxporteerd Werftour-bestand (.html of .zip), 360°-foto's, 360°-video's of een IFC-bestand naartoe.</div>
+      </section>
+    </div>
+  </div>
+
+  <div class="home qhome" id="questHome" hidden>
+    <div class="home-in" style="max-width:780px">
+      <div class="hero">
+        <h1>Werftour op de Quest</h1>
+        <p>Open een tour die op een laptop klaarstaat. Klik op de laptop in Werftour op <b>Naar Quest</b>: daar zie je een QR-code en een code van 6 tekens.</p>
+      </div>
+      <section class="mode-card">
+        <h2>Code van de laptop</h2>
+        <div class="row"><input id="qCodeIn" class="qinput" maxlength="7" placeholder="K7P 3QX" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Code van de laptop"><button class="btn primary" id="qGo">Openen</button></div>
+        <div id="qProg" class="col" hidden><div class="bar"><i id="qBar"></i></div><p class="hint" id="qMsg"></p></div>
+      </section>
+      <section class="projects">
+        <div class="ph"><h2>Op deze bril</h2></div>
+        <div class="plist" id="qList"></div>
+        <p class="hint">Deze tours blijven op de bril bewaard en werken ook zonder laptop. Stuur een tour opnieuw om een nieuwere versie te krijgen.</p>
       </section>
     </div>
   </div>
@@ -419,6 +454,7 @@ input[type=file]{display:none}
         <button class="vbtn" id="vNext" hidden>Volgend deel ▶</button>
       </div>
       <button class="vbig" id="vBig" hidden aria-label="Video afspelen">▶</button>
+      <div class="vrbig" id="vrBig" hidden></div>
       <div class="empty" id="empty" hidden></div>
       <div class="pin" id="pin" hidden></div>
       <div class="picker" id="picker" hidden></div>
@@ -993,12 +1029,14 @@ function progress(f, t) { const b = $("#barFill"); if (b) b.style.width = Math.r
 function renderHeader() {
   const app = screen === "app";
   $("#appTools").hidden = !app;
-  $("#homeBack").hidden = !app || viewerOnly;
-  $("#homeBtn").disabled = viewerOnly;
+  $("#homeBack").hidden = !app || (viewerOnly && !questMode);
+  $("#homeBack").textContent = questMode ? "· mijn tours" : "· startscherm";
+  $("#homeBtn").disabled = viewerOnly && !questMode;
   if (!app || !tour) return;
   $("#kindChip").textContent = kindLabel(tour.kind);
   $("#modeView").setAttribute("aria-pressed", mode === "view"); $("#modeEdit").setAttribute("aria-pressed", mode === "edit");
   $("#modeSeg").hidden = viewerOnly;
+  $("#questBtn").hidden = viewerOnly || questMode || !tour.scenes.length;
   if (document.activeElement !== $("#tourTitle")) $("#tourTitle").value = tour.title || "";
   $("#tourTitle").readOnly = mode !== "edit" || viewerOnly;
   document.querySelectorAll("[data-edit]").forEach(el => el.hidden = mode !== "edit" || viewerOnly);
@@ -1615,13 +1653,14 @@ async function renderHome() {
 }
 async function showHome() {
   if (saveT) await saveNow();
+  stopQuestSession(true);
   stopGuide(); closeCard(); hideBim(); hidePicker();
   if (renderer.xr.isPresenting) renderer.xr.getSession()?.end();
   screen = "home"; tour = null; clearStage(); resetVideo(); window.scrollTo(0, 0);
   $("#home").hidden = false; $("#main").hidden = true;
   renderHeader(); renderHome();
 }
-$("#homeBtn").onclick = () => { if (!viewerOnly && screen === "app") showHome(); };
+$("#homeBtn").onclick = () => { if (questMode && screen === "app") showQuestHome(); else if (!viewerOnly && screen === "app") showHome(); };
 function newProject(kind) {
   return { id: uid(), kind, title: kind === "bim" ? "Nieuw BIM-project" : kind === "video" ? "Nieuwe 360°-video" : "Nieuwe rondleiding", scenes: [], route: [], tts: true, guideAuto: true, guideAutostart: kind === "tour", autoNext: true, createdAt: Date.now() };
 }
@@ -1771,6 +1810,7 @@ async function enterVR() {
     rig.rotation.y = -deg(yaw); camera.position.set(0, 0, 0); camera.rotation.set(0, 0, 0);
     buildXRMarkers();
     if (guide.on) setTimeout(() => { faceInXR(route()[guide.i]); showXRGuide(); }, 300);
+    $("#vrBig").hidden = true;
     s.addEventListener("end", () => { hideXRCard(); hideXRGuide(); rig.rotation.set(0, 0, 0); if (view === "walk") camera.position.set(0, EYE, 0); resize(); });
   } catch (e) { showHelp(e.message); }
 }
@@ -2225,11 +2265,269 @@ $("#stAudioFile").onchange = async e => {
 };
 $("#stRec").onclick = () => { const s = selStep; if (s) recordAudio(s, data => { s.audio = data; }); };
 
+/* ---------- Quest: send from the laptop, receive on the headset ---------- */
+const urlParams = new URLSearchParams(location.search);
+const questMode = urlParams.has("quest") || urlParams.has("q");
+const PEER_PREFIX = "werftour-";
+const CODE_CHARS = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), b => CODE_CHARS[b % CODE_CHARS.length]).join("");
+const fmtCode = c => c.slice(0, 3) + " " + c.slice(3);
+const PEER_OPTS = { config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }] } };
+const QCHUNK = 64 * 1024;
+function loadScript(src, global) {
+  return new Promise((ok, no) => {
+    if (window[global]) return ok(window[global]);
+    const sc = document.createElement("script"); sc.src = src;
+    sc.onload = () => window[global] ? ok(window[global]) : no(new Error(global + " ontbreekt"));
+    sc.onerror = () => no(new Error("een onderdeel kon niet laden (geen internet?)"));
+    document.head.appendChild(sc);
+  });
+}
+const loadPeer = () => loadScript("https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "Peer");
+const loadQR = () => loadScript("https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js", "qrcode");
+function openPeer(Peer, id) {
+  return new Promise((ok, no) => {
+    const p = id ? new Peer(id, PEER_OPTS) : new Peer(PEER_OPTS);
+    const t = setTimeout(() => { try { p.destroy(); } catch (e) {} no(new Error("de koppelserver antwoordt niet")); }, 15000);
+    p.on("open", () => { clearTimeout(t); ok(p); });
+    p.on("error", e => { clearTimeout(t); no(e); });
+  });
+}
+
+/* laptop side */
+let qSession = null;
+async function buildPayload() {
+  const out = JSON.parse(JSON.stringify(tour)); out.viewerOnly = true; delete out.demo;
+  const videos = [];
+  for (const s of out.scenes) {
+    if (!s.thumb && s.image && !isModel(s) && !isVideo(s)) { try { s.thumb = bitmapToDataURL(await createImageBitmap(await (await fetch(s.image)).blob()), 240, 0.7); } catch (e) {} }
+    if (s.image) s.image = await toDataURL(s.image);
+    if (s.model) s.model = await toDataURL(s.model);
+    if (isVideo(s) && s.video) {
+      const blob = s.video.startsWith("idb:") ? await lib.get("blobs", s.video.slice(4)) : s.video.startsWith("data:") ? dataUrlToBlob(s.video) : await (await fetch(s.video)).blob();
+      if (!blob) throw new Error(`de video van ‘${s.name}’ zit niet meer in deze browser`);
+      videos.push({ id: s.id, blob }); s.video = "peer:" + s.id;
+    }
+  }
+  return { json: new TextEncoder().encode(JSON.stringify(out)), videos };
+}
+async function sendToQuest() {
+  if (!tour || !tour.scenes.length) { toast("Er is nog niets om te sturen. Voeg eerst inhoud toe."); return; }
+  stopQuestSession(true);
+  const b = $("#cardBody");
+  b.innerHTML = `<h3>Open op de Quest</h3><div class="bar"><i id="barFill" style="width:30%"></i></div><p class="hint" id="barText">Verbinding klaarzetten…</p>`;
+  $("#card").dataset.busy = "1"; $("#card").hidden = false;
+  try {
+    await saveNow();
+    const [Peer, qrcode] = await Promise.all([loadPeer(), loadQR()]);
+    progress(0.6, "Tour klaarmaken om te versturen…");
+    const payload = await buildPayload();
+    let peer = null, code = "";
+    for (let i = 0; i < 4 && !peer; i++) {
+      code = newCode();
+      peer = await openPeer(Peer, PEER_PREFIX + code.toLowerCase()).catch(e => { if (e && e.type === "unavailable-id") return null; throw e; });
+    }
+    if (!peer) throw new Error("geen vrije code gevonden, probeer opnieuw");
+    qSession = { peer, code, conns: [], payload };
+    const url = location.origin + location.pathname + "?q=" + code;
+    const qr = qrcode(0, "M"); qr.addData(url); qr.make();
+    b.innerHTML = `<h3>Open op de Quest</h3>
+      <div class="qrwrap"><div class="qr"><img alt="QR-code om deze tour op de Quest te openen"></div>
+        <div class="qrtext"><p><b>Scan</b> deze QR-code met de Quest.</p><p>Of open op de Quest <span class="url"></span> en typ de code:</p><div class="qcode"></div></div></div>
+      <p class="hint">De tour wordt naar de bril gestuurd en blijft daar bewaard; daarna heb je de laptop niet meer nodig. Laat dit venster open tot elke bril ‘klaar’ toont. Meerdere brillen tegelijk kan.</p>
+      <div class="qconns" id="qConns"></div>
+      <div class="row"><button class="btn primary" id="qStop">Klaar</button></div>`;
+    b.querySelector(".qr img").src = qr.createDataURL(6, 2);
+    b.querySelector(".url").textContent = location.host + location.pathname + "?quest";
+    b.querySelector(".qcode").textContent = fmtCode(code);
+    $("#qStop").onclick = () => stopQuestSession();
+    renderQConns();
+    peer.on("connection", conn => handleQuestConn(conn));
+    peer.on("disconnected", () => { try { if (qSession?.peer === peer) peer.reconnect(); } catch (e) {} });
+    peer.on("error", e => { if (e.type !== "peer-unavailable") console.warn(e); });
+  } catch (err) {
+    console.error(err); stopQuestSession(true);
+    b.innerHTML = `<h3>Open op de Quest</h3><p></p><p class="hint">Tips: zet de laptop en de Quest op hetzelfde wifi-netwerk. Blokkeert het schoolnetwerk de verbinding, gebruik dan de hotspot van een gsm, of exporteer de tour en open hem via de VR-viewer starter.</p><div class="row"><button class="btn">Sluiten</button></div>`;
+    b.querySelector("p").textContent = "De verbinding kon niet klaargezet worden: " + (err?.message || err?.type || err) + ".";
+    b.querySelector("button").onclick = closeCard; $("#card").dataset.busy = "1"; $("#card").hidden = false;
+  }
+}
+function stopQuestSession(silent) {
+  if (qSession) { try { qSession.peer.destroy(); } catch (e) {} qSession = null; }
+  if (!silent) closeCard();
+}
+function renderQConns() {
+  const el = $("#qConns"); if (!el || !qSession) return;
+  if (!qSession.conns.length) { el.innerHTML = '<p class="hint">Wachten op een bril…</p>'; return; }
+  el.innerHTML = "";
+  for (const r of qSession.conns) {
+    const d = document.createElement("div"); d.className = "qrow";
+    d.innerHTML = `<b></b><span class="hint"></span><div class="bar"><i></i></div>`;
+    d.querySelector("b").textContent = r.name; d.querySelector(".hint").textContent = r.state;
+    d.querySelector("i").style.width = Math.round(r.pct * 100) + "%";
+    el.appendChild(d);
+  }
+}
+async function drainConn(conn) { const dc = conn.dataChannel; if (!dc) return; while (dc.bufferedAmount > 4 * 1048576) await new Promise(r => setTimeout(r, 25)); }
+function handleQuestConn(conn) {
+  const session = qSession; if (!session) return;
+  const row = { name: "Bril " + (session.conns.length + 1), pct: 0, state: "verbinden…" };
+  session.conns.push(row); renderQConns();
+  conn.on("open", async () => {
+    try {
+      row.state = "versturen…"; renderQConns();
+      const { json, videos } = session.payload;
+      const head = { t: "werftour", v: 1, title: tour.title || "Tour", kind: tour.kind, json: json.byteLength, videos: videos.map(v => ({ id: v.id, size: v.blob.size, type: v.blob.type })) };
+      conn.send(JSON.stringify(head));
+      const total = head.json + head.videos.reduce((a, v) => a + v.size, 0) || 1; let sent = 0, n = 0;
+      const pump = async bytes => {
+        for (let o = 0; o < bytes.byteLength; o += QCHUNK) {
+          if (qSession !== session) throw new Error("gestopt");
+          await drainConn(conn);
+          const part = bytes.subarray(o, o + QCHUNK); conn.send(part);
+          sent += part.byteLength; row.pct = sent / total;
+          if (++n % 12 === 0) renderQConns();
+        }
+      };
+      await pump(json);
+      for (const v of videos) for (let o = 0; o < v.blob.size; o += 4 * 1048576) await pump(new Uint8Array(await v.blob.slice(o, o + 4 * 1048576).arrayBuffer()));
+      conn.send(JSON.stringify({ t: "end" }));
+      row.pct = 1; row.state = "verstuurd, de bril slaat op…"; renderQConns();
+    } catch (e) { row.state = "mislukt: " + (e.message || e); renderQConns(); }
+  });
+  conn.on("data", d => {
+    if (typeof d !== "string") return;
+    try { const m = JSON.parse(d); if (m.t === "hello" && m.name) row.name = m.name; if (m.t === "done") row.state = "klaar ✓"; renderQConns(); } catch (e) {}
+  });
+  conn.on("close", () => { if (row.state !== "klaar ✓" && row.pct < 1) { row.state = "verbinding verbroken"; renderQConns(); } });
+  conn.on("error", e => { row.state = "fout: " + (e?.message || e?.type || e); renderQConns(); });
+}
+$("#questBtn").onclick = sendToQuest;
+
+/* headset side */
+function showQuestHome() {
+  stopGuide(); closeCard(); hideBim(); hidePicker();
+  if (renderer.xr.isPresenting) renderer.xr.getSession()?.end();
+  screen = "quest"; tour = null; clearStage(); resetVideo(); window.scrollTo(0, 0);
+  $("#home").hidden = true; $("#main").hidden = true; $("#questHome").hidden = false; $("#vrBig").hidden = true;
+  renderHeader(); renderQuestList();
+  setTimeout(() => { if (screen === "quest" && $("#qProg").hidden) $("#qCodeIn").focus(); }, 100);
+}
+async function renderQuestList() {
+  const metas = (await lib.all("meta")).filter(m => m.received).sort((a, b) => b.updated - a.updated);
+  const el = $("#qList"); el.innerHTML = "";
+  if (!metas.length) { el.innerHTML = '<div class="pempty">Nog geen tours op deze bril. Vul hierboven de code van de laptop in.</div>'; return; }
+  for (const m of metas) {
+    const row = document.createElement("div"); row.className = "prow";
+    row.innerHTML = `${m.thumb ? '<img class="th" alt="">' : '<span class="th"></span>'}<div style="min-width:0"><b></b><small></small></div><div class="acts"><button class="btn primary">Openen</button><span class="dw"><button class="btn danger">Verwijderen</button></span></div>`;
+    if (m.thumb) row.querySelector("img").src = m.thumb;
+    row.querySelector("b").textContent = m.name || "Tour";
+    row.querySelector("small").textContent = `${kindLabel(m.kind)} · ontvangen ${ago(m.updated)} · ${fmtMB(m.size * 0.75 + (m.videoSize || 0))}`;
+    row.querySelector(".acts > .btn").onclick = () => openReceived(m.id);
+    const dw = row.querySelector(".dw");
+    dw.querySelector("button").onclick = () => {
+      dw.innerHTML = '<span class="confirm">Verwijderen? <button class="btn small danger">Ja</button><button class="btn small">Nee</button></span>';
+      const [y, n] = dw.querySelectorAll("button");
+      y.onclick = async () => { try { const d = await lib.get("data", m.id); for (const s of JSON.parse(d || "{}").scenes || []) if (s.video?.startsWith("idb:")) await lib.del("blobs", s.video.slice(4)); } catch (e) {} await lib.del("meta", m.id); await lib.del("data", m.id); renderQuestList(); };
+      n.onclick = renderQuestList;
+    };
+    el.appendChild(row);
+  }
+}
+async function openReceived(id) {
+  const d = await lib.get("data", id); if (!d) { toast("Deze tour kon niet geladen worden."); return; }
+  $("#questHome").hidden = true;
+  const t = JSON.parse(d); t.viewerOnly = true;
+  await openProject(t, { mode: "view" });
+  showStartVR();
+}
+function showStartVR() {
+  const el = $("#vrBig"); el.innerHTML = "";
+  const add = (label, cls, fn) => { const b = document.createElement("button"); b.textContent = label; if (cls) b.className = cls; b.onclick = fn; el.appendChild(b); };
+  add("▶ Start in VR", "", () => { el.hidden = true; enterVR(); });
+  if (route().length) add("Start in VR met rondleiding", "alt", async () => { el.hidden = true; closeCard(); startGuide(0); enterVR(); });
+  el.hidden = false; closeCard();
+}
+function questStatus(msg, frac, isError) {
+  const box = $("#qProg"); box.hidden = msg == null; if (msg == null) return;
+  $("#qMsg").textContent = msg; $("#qMsg").style.color = isError ? "var(--bad)" : "";
+  $("#qBar").style.width = Math.round((frac || 0) * 100) + "%";
+  $("#qGo").disabled = !isError && frac < 1;
+}
+async function receiveFromLaptop(raw) {
+  const code = String(raw || "").toUpperCase().replace(/[^0-9A-Z]/g, "");
+  if (code.length !== 6) { questStatus("Een code heeft 6 tekens, bijvoorbeeld K7P 3QX.", 0, true); return; }
+  $("#qCodeIn").value = fmtCode(code);
+  questStatus(`Verbinden met de laptop (code ${fmtCode(code)})…`, 0.02);
+  let peer = null;
+  try {
+    const Peer = await loadPeer();
+    peer = await openPeer(Peer);
+    const conn = peer.connect(PEER_PREFIX + code.toLowerCase(), { reliable: true, serialization: "raw" });
+    const res = await new Promise((ok, no) => {
+      let head = null, buf = null, got = 0, vi = -1, vgot = 0, recv = 0, total = 1, done = false, last = 0;
+      const vids = [];
+      const to = setTimeout(() => no(new Error("de laptop antwoordt niet. Staat het venster ‘Open op de Quest’ nog open?")), 25000);
+      peer.on("error", e => { clearTimeout(to); no(new Error(e?.type === "peer-unavailable" ? "deze code is niet (meer) actief. Kijk de code op de laptop na." : (e?.message || e?.type || "verbindingsfout"))); });
+      conn.on("open", () => { clearTimeout(to); conn.send(JSON.stringify({ t: "hello", name: "Quest " + Math.random().toString(36).slice(2, 5).toUpperCase() })); questStatus("Verbonden, de tour komt binnen…", 0.03); });
+      conn.on("data", d => {
+        if (typeof d === "string") {
+          const m = JSON.parse(d);
+          if (m.t === "werftour") { head = m; buf = new Uint8Array(m.json); total = m.json + m.videos.reduce((a, v) => a + v.size, 0) || 1; }
+          else if (m.t === "end") { done = true; ok({ head, buf, vids, conn }); }
+          return;
+        }
+        if (!head) return;
+        const u = d instanceof ArrayBuffer ? new Uint8Array(d) : new Uint8Array(d.buffer, d.byteOffset, d.byteLength);
+        let off = 0;
+        while (off < u.length) {
+          if (got < head.json) { const n = Math.min(head.json - got, u.length - off); buf.set(u.subarray(off, off + n), got); got += n; off += n; continue; }
+          while (vi < 0 || (vi < head.videos.length && vgot >= head.videos[vi].size)) { vi++; vgot = 0; vids[vi] = []; }
+          if (vi >= head.videos.length) break;
+          const n = Math.min(head.videos[vi].size - vgot, u.length - off); vids[vi].push(u.slice(off, off + n)); vgot += n; off += n;
+        }
+        recv += u.length;
+        const now = performance.now(); if (now - last > 200) { last = now; questStatus(`‘${head.title}’ ontvangen: ${fmtMB(recv)} van ${fmtMB(total)}`, recv / total); }
+      });
+      conn.on("close", () => { if (!done) no(new Error("de verbinding werd verbroken")); });
+      conn.on("error", e => { if (!done) no(new Error(e?.message || "verbindingsfout")); });
+    });
+    questStatus("Opslaan op de bril…", 1);
+    const t = JSON.parse(new TextDecoder().decode(res.buf));
+    if (!t || !Array.isArray(t.scenes)) throw new Error("dit is geen Werftour-tour");
+    const existing = t.id && await lib.get("meta", t.id);
+    if (existing && !existing.received) t.id = uid();   /* never overwrite an editable project on this device */
+    if (existing && existing.received) { try { const old = JSON.parse(await lib.get("data", t.id) || "{}"); for (const s of old.scenes || []) if (s.video?.startsWith("idb:")) await lib.del("blobs", s.video.slice(4)); } catch (e) {} }
+    t.id = t.id || uid();
+    let vs = 0;
+    for (let i = 0; i < res.head.videos.length; i++) {
+      const v = res.head.videos[i]; const blob = new Blob(res.vids[i] || [], { type: v.type || "video/mp4" });
+      const key = uid(); await lib.put("blobs", key, blob); vs += blob.size;
+      const s = t.scenes.find(x => x.id === v.id); if (s) { s.video = "idb:" + key; s.videoSize = blob.size; }
+    }
+    t.viewerOnly = true; t.receivedAt = Date.now();
+    const data = JSON.stringify(t);
+    await lib.put("data", t.id, data);
+    await lib.put("meta", t.id, { id: t.id, name: t.title || "Tour", kind: t.kind, updated: t.receivedAt, size: data.length, videoSize: vs, thumb: t.scenes.find(s => s.thumb)?.thumb || "", scenes: t.scenes.length, received: true });
+    try { res.conn.send(JSON.stringify({ t: "done" })); } catch (e) {}
+    setTimeout(() => { try { peer.destroy(); } catch (e) {} }, 1500);
+    questStatus(null); renderQuestList();
+    await openReceived(t.id);
+  } catch (err) {
+    console.error(err); try { peer?.destroy(); } catch (e) {}
+    questStatus("Dat lukte niet: " + (err?.message || err) + " Tip: zet de Quest en de laptop op hetzelfde wifi-netwerk.", 0, true);
+  }
+}
+$("#qGo").onclick = () => receiveFromLaptop($("#qCodeIn").value);
+$("#qCodeIn").addEventListener("keydown", e => { if (e.key === "Enter") receiveFromLaptop($("#qCodeIn").value); });
+$("#qCodeIn").addEventListener("input", e => { const v = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 6); e.target.value = v.length > 3 ? v.slice(0, 3) + " " + v.slice(3) : v; });
+
 /* ---------- loop ---------- */
 function render() {
   renderHeader();
   if (screen !== "app" || !tour) return;
   renderSide(); renderMarkers(); renderGuideSide(); renderGuideBar(); renderStart(); renderEmpty(); renderBackup(); renderVbar();
+  if (!$("#card").hidden || renderer.xr.isPresenting) $("#vrBig").hidden = true;
   $("#hudName").textContent = cur?.name || "";
   $("#hudMeta").hidden = !cur;
   const q = tour.scenes.flatMap(s => s.hotspots).filter(h => h.type === "quiz");
@@ -2278,10 +2576,10 @@ window.__werftour = { ifcToGlb };
   let data = null;
   try { data = JSON.parse($("#tour-data").textContent || "null"); } catch (e) {}
   if (data && data.viewerOnly) { await openProject(data, { mode: "view" }); return; }
+  if (questMode) { showQuestHome(); const c = new URLSearchParams(location.search).get("q"); if (c) { history.replaceState(null, "", location.pathname + "?quest"); receiveFromLaptop(c); } return; }
   await migrateOld();
   showHome();
 })();
 </script>
-
 </body>
 </html>

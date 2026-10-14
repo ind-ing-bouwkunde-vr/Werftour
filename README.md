@@ -26,11 +26,31 @@ Soorten icoontjes: info (tekst, foto of plan), vraag (meerkeuze), ga naar (ander
 
 Je projecten worden automatisch in je eigen browser bewaard (IndexedDB). Er gaat niets naar een server. Exporteer daarom regelmatig.
 
-## Op de Meta Quest
+## Op de Meta Quest: tour versturen met een QR-code
 
-- Open de link hierboven in de browser van de Quest en tik op **VR-bril**. Via het menu van de browser kan je Werftour ook als app installeren.
-- Geëxporteerde tours zet je online via GitHub Pages of de [VR-viewer starter](https://github.com/ind-ing-bouwkunde-vr/vr-viewer). VR werkt alleen via https of localhost.
-- In VR: richt de straal en druk op de trigger. In een BIM-model stap je met de linker stick en draai je met de rechter stick (in stappen van 30°, tegen misselijkheid).
+De laptop is de werkplek, de Quest is alleen de viewer. Op de Quest kan je niets bewerken.
+
+**Eenmalig op de Quest:** open in de browser van de Quest
+**https://ind-ing-bouwkunde-vr.github.io/Werftour/?quest** en zet die pagina bij je bladwijzers
+(of installeer hem als app via het browsermenu).
+
+**Elke keer:**
+
+1. Open je tour op de laptop en klik bovenaan op **Naar Quest**. Je ziet een QR-code en een code van 6 tekens (bv. `K7P 3QX`).
+2. Op de Quest: scan de QR-code met de camera van de bril, of open de bladwijzer en typ de code.
+3. De tour komt rechtstreeks van de laptop naar de bril (niet via een server) en wordt op de bril bewaard.
+4. Tik op **▶ Start in VR** of **Start in VR met rondleiding**.
+
+Daarna heb je de laptop niet meer nodig: de tour blijft onder *Op deze bril* staan, ook zonder internet.
+Meerdere brillen tegelijk kan: laat het venster op de laptop open tot elke bril *klaar ✓* toont.
+Heb je de tour aangepast? Stuur hem gewoon opnieuw, de oude versie op de bril wordt vervangen.
+
+**Lukt de verbinding niet?** De laptop en de Quest moeten elkaar kunnen bereiken. Sommige netwerken
+(zoals eduroam) blokkeren dat. Zet dan de laptop en de Quest op de hotspot van een gsm. Als alternatief
+kan je de tour exporteren en openen via de [VR-viewer starter](https://github.com/ind-ing-bouwkunde-vr/vr-viewer).
+
+**In VR:** richt de straal en druk op de trigger. In een BIM-model stap je met de linker stick en draai
+je met de rechter stick (in stappen van 30°, tegen misselijkheid).
 
 ## Tips voor bestanden
 
@@ -43,6 +63,7 @@ Je projecten worden automatisch in je eigen browser bewaard (IndexedDB). Er gaat
 - 3D-weergave: [three.js](https://threejs.org) (MIT), [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) (MIT)
 - IFC-lezer: [web-ifc](https://github.com/ThatOpen/engine_web-ifc) (MPL-2.0)
 - Zip: [JSZip](https://stuk.github.io/jszip/) (MIT)
+- Versturen naar de Quest: [PeerJS](https://peerjs.com) (MIT, WebRTC; de gratis PeerJS-server legt alleen de verbinding, de tour zelf gaat rechtstreeks), [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) (MIT)
 - Demobeelden: [Poly Haven](https://polyhaven.com) (CC0), via de three.js-voorbeelden
 - Demomodel: IFC-testbestand uit de web-ifc-repository (That Open Company)
 
