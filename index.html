@@ -1306,9 +1306,9 @@ async function importPhotos(files) {
       tour.scenes.push(s); first = first || s;
     } catch (e) { odd.push(f.name + " (onleesbaar)"); }
   }
-  progress(1, "Klaar");
+  progress(1, "Opslaan in je browser…");
   if (first && (!tour.start || !scene(tour.start))) tour.start = first.id;
-  closeCard(); await saveNow();
+  await saveNow(); closeCard();
   if (first) await go(first.id);
   if (odd.length) toast(`Let op: ${odd.slice(0, 3).join(", ")}${odd.length > 3 ? "…" : ""} ${odd.length > 1 ? "zijn" : "is"} geen 2:1-panorama. Exporteer in Insta360 Studio als 360°-foto.`);
   else if (first) toast(imgs.length > 1 ? `${imgs.length} foto's toegevoegd. Klik in een foto om een icoontje te plaatsen.` : "Foto toegevoegd. Klik in de foto om een icoontje te plaatsen.");
@@ -1570,10 +1570,10 @@ async function importVideos(files) {
       tour.scenes.push(s); first = first || s;
     } catch (e) { warn.push(`${f.name} kon niet bewaard worden in de browser (te weinig opslagruimte?)`); }
   }
-  progress(1, "Klaar");
+  progress(1, "Opslaan in je browser…");
   if (first && (!tour.start || !scene(tour.start))) tour.start = first.id;
   if (first && /^Nieuwe 360°-video$/.test(tour.title || "")) tour.title = first.name;
-  closeCard(); await saveNow();
+  await saveNow(); closeCard();
   if (first) await go(first.id);
   if (warn.length) toast("Let op: " + warn.slice(0, 2).join(" · ") + (warn.length > 2 ? " …" : ""));
   else if (first) toast("Video toegevoegd. Pauzeer de video en klik in het beeld om een icoontje te plaatsen.");
