@@ -2,7 +2,7 @@
 
 Gratis app om zelf virtuele werfbezoeken te maken voor het bouwkundig onderwijs. Alles werkt in de browser, op pc, gsm en de Meta Quest.
 
-**Open de app:** https://ind-ing-bouwkunde-vr.github.io/werftour/
+**Open de app:** https://ind-ing-bouwkunde-vr.github.io/Werftour/
 
 ## Drie modi
 
