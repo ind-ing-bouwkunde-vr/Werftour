@@ -55,7 +55,7 @@ header.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-block
 .brand .back{font-family:var(--f-body);font-weight:500;font-size:12px;color:var(--muted)}
 .apptools{display:contents}
 .kindchip{font-family:var(--f-display);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:1px 6px;white-space:nowrap}
-#tourTitle{font-family:var(--f-display);font-weight:600;font-size:16px;border:1px solid transparent;background:transparent;border-radius:var(--r);padding:4px 8px;min-width:180px;flex:1 1 220px;text-overflow:ellipsis}
+#tourTitle{font-family:var(--f-display);font-weight:600;font-size:16px;border:1px solid transparent;background:transparent;border-radius:var(--r);padding:4px 8px;min-width:120px;flex:1 1 140px;text-overflow:ellipsis}
 #tourTitle:hover:not([readonly]),#tourTitle:focus{border-color:var(--line);outline:none}
 .save{font-size:12px;color:var(--muted);white-space:nowrap}
 .chipbtn{border:1px solid var(--warn);background:var(--warn-soft);color:var(--warn);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
@@ -247,6 +247,7 @@ input[type=file]{display:none}
 .vrbig{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);z-index:4;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 24px)}
 .vrbig button{border:0;border-radius:999px;padding:14px 26px;font-size:18px;font-weight:600;cursor:pointer;box-shadow:0 8px 26px rgba(0,0,0,.4);background:var(--accent);color:var(--accent-fg)}
 .vrbig button.alt{background:#fff;color:#11171b}
+@media (max-width:1400px){.brand .back{display:none}.save:has(+ .chipbtn:not([hidden])){display:none}}
 @media (max-width:760px){
   main{grid-template-columns:1fr;grid-template-rows:minmax(280px,58%) 1fr}
   aside{order:2;border-right:0;border-top:1px solid var(--line)}
@@ -2106,7 +2107,7 @@ function narrate(s, preview = false) {
 function renderGuideBar() {
   const r = route(), on = guide.on, s = r[guide.i];
   $("#gBar").hidden = !on; stage.classList.toggle("guiding", on);
-  $("#gStart").hidden = on || !r.length || mode !== "view" || screen !== "app" || !cur;
+  $("#gStart").hidden = on || !r.length || mode !== "view" || screen !== "app" || !cur || !$("#vrBig").hidden;
   $("#gStart").textContent = `▶ Start de rondleiding (${r.length} ${r.length === 1 ? "stap" : "stappen"})`;
   if (!on || !s) return;
   $("#gStep").textContent = `${guide.i + 1} / ${r.length}`;
@@ -2446,7 +2447,7 @@ function showStartVR() {
   const add = (label, cls, fn) => { const b = document.createElement("button"); b.textContent = label; if (cls) b.className = cls; b.onclick = fn; el.appendChild(b); };
   add("▶ Start in VR", "", () => { el.hidden = true; enterVR(); });
   if (route().length) add("Start in VR met rondleiding", "alt", async () => { el.hidden = true; closeCard(); startGuide(0); enterVR(); });
-  el.hidden = false; closeCard();
+  el.hidden = false; closeCard(); renderGuideBar();
 }
 function questStatus(msg, frac, isError) {
   const box = $("#qProg"); box.hidden = msg == null; if (msg == null) return;
