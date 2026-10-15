@@ -1777,10 +1777,12 @@ const controllers = [0, 1].map(i => {
   const c = renderer.xr.getController(i);
   const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -8)]), new THREE.LineBasicMaterial({ color: 0xf07a2a }));
   c.add(line); rig.add(c);
+  c.addEventListener("squeezestart", () => toggleXRMenu());
   c.addEventListener("select", () => {
     ray.camera = renderer.xr.getCamera();
     const m = new THREE.Matrix4().extractRotation(c.matrixWorld);
     ray.ray.origin.setFromMatrixPosition(c.matrixWorld); ray.ray.direction.set(0, 0, -1).applyMatrix4(m); ray.far = Infinity;
+    if (xrMenu) { const mh = ray.intersectObject(xrMenu, false)[0]; if (mh) { xrMenuPress(mh.uv); return; } }
     if (xrGuide) { const gh = ray.intersectObject(xrGuide, false)[0]; if (gh) { xrGuidePress(gh.uv); return; } }
     if (xrVPanel) { const vh = ray.intersectObject(xrVPanel, false)[0]; if (vh) { xrVideoPress(vh.uv); return; } }
     if (xrCard) { closeCard(); hideBim(); return; }
@@ -1833,8 +1835,9 @@ async function enterVR() {
     rig.rotation.y = -deg(yaw); camera.position.set(0, 0, 0); camera.rotation.set(0, 0, 0);
     buildXRMarkers();
     if (guide.on) setTimeout(() => { faceInXR(route()[guide.i]); showXRGuide(); }, 300);
+    else setTimeout(() => showXRMenu(), 400);
     $("#vrBig").hidden = true;
-    s.addEventListener("end", () => { hideXRCard(); hideXRGuide(); rig.rotation.set(0, 0, 0); if (view === "walk") camera.position.set(0, EYE, 0); resize(); });
+    s.addEventListener("end", () => { hideXRCard(); hideXRGuide(); hideXRMenu(); if (questMode && screen === "app") setTimeout(showStartVR, 200); rig.rotation.set(0, 0, 0); if (view === "walk") camera.position.set(0, EYE, 0); resize(); });
   } catch (e) { showHelp(e.message); }
 }
 function showHelp(msg) {
@@ -2087,6 +2090,12 @@ async function gotoStep(i) {
 function nextStep() { if (!guide.on) return; if (guide.i < route().length - 1) gotoStep(guide.i + 1); else endGuide(); }
 function endGuide() {
   stopGuide();
+  if (renderer.xr.isPresenting) {
+    const q = tour.scenes.flatMap(s => s.hotspots).filter(h => h.type === "quiz");
+    const done = q.filter(h => h.id in answers), good = done.filter(h => answers[h.id]);
+    showXRMenu("Einde van de rondleiding." + (done.length ? ` Vragen: ${good.length} van ${done.length} juist.` : "") + " Kijk zelf verder rond of start opnieuw.");
+    return;
+  }
   const q = tour.scenes.flatMap(s => s.hotspots).filter(h => h.type === "quiz");
   const done = q.filter(h => h.id in answers), good = done.filter(h => answers[h.id]);
   const b = $("#cardBody");
@@ -2107,8 +2116,8 @@ function narrate(s, preview = false) {
   const auto = () => !preview && guide.on && tour.guideAuto !== false;
   const done = () => { if (tok !== guide.tok) return; guide.playing = false; renderGuideBar(); showXRGuide(); if (auto()) guide.timer = setTimeout(nextStep, 1800); };
   if (s.audio) {
-    audioEl.src = s.audio; audioEl.onended = done;
-    audioEl.play().catch(() => { guide.playing = false; renderGuideBar(); });
+    audioEl.src = s.audio; audioEl.onended = done; guide.playing = true;
+    audioEl.play().catch(() => { guide.playing = false; renderGuideBar(); showXRGuide(); });
   } else if (tour.tts !== false && hasTTS && s.text) {
     const u = new SpeechSynthesisUtterance(s.text);
     u.lang = ttsVoice?.lang || "nl-BE"; if (ttsVoice) u.voice = ttsVoice;
@@ -2125,6 +2134,7 @@ function narrate(s, preview = false) {
     guide.timer = setTimeout(() => { if (tok === guide.tok) nextStep(); }, Math.max(6000, (s.text || "").split(/\s+/).length * 420));
   }
   renderGuideBar();
+  if (renderer.xr.isPresenting && guide.on && !xrMenu) showXRGuide();
 }
 function renderGuideBar() {
   const r = route(), on = guide.on, s = r[guide.i];
@@ -2183,32 +2193,96 @@ function faceInXR(s) {
 }
 let xrGuide = null;
 function hideXRGuide() { if (xrGuide) { world.remove(xrGuide); xrGuide.material.map.dispose(); xrGuide = null; } }
-function showXRGuide() {
+function showXRGuide(front) {
+  const prev = xrGuide && xrGuide.userData.step === guide.i ? { p: xrGuide.position.clone(), q: xrGuide.quaternion.clone() } : null;
   hideXRGuide();
   if (!guide.on || !renderer.xr.isPresenting) return;
+  hideXRMenu();
   const r = route(), s = r[guide.i]; if (!s) return;
-  const c = document.createElement("canvas"); c.width = 1024; c.height = 420; const g = c.getContext("2d");
-  g.fillStyle = "rgba(12,16,19,.94)"; g.fillRect(0, 0, 1024, 420);
-  g.fillStyle = "#f07a2a"; g.fillRect(0, 0, 1024 * (guide.i + 1) / r.length, 8);
-  g.fillStyle = "#fff"; g.font = "600 42px sans-serif"; g.fillText(`${guide.i + 1}/${r.length}  ${s.title || ""}`.slice(0, 42), 40, 70);
+  const W = 1024, H = 510;
+  const c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d");
+  g.fillStyle = "rgba(12,16,19,.94)"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#f07a2a"; g.fillRect(0, 0, W * (guide.i + 1) / r.length, 8);
+  g.fillStyle = "#fff"; g.font = "600 42px sans-serif"; g.fillText(fitText(g, `${guide.i + 1}/${r.length}  ${s.title || ""}`, 944), 40, 70);
   g.font = "31px sans-serif"; let y = 122, lines = 0, line = "";
   for (const w of (s.text || "").split(" ")) { if (g.measureText(line + w).width > 944) { g.fillText(line, 40, y); y += 40; line = ""; if (++lines >= 5) break; } line += w + " "; }
   if (lines < 5) g.fillText(line, 40, y);
-  g.fillStyle = "rgba(255,255,255,.14)"; g.fillRect(0, 340, 330, 80); g.fillRect(347, 340, 330, 80); g.fillRect(694, 340, 330, 80);
-  g.fillStyle = "#fff"; g.font = "600 34px sans-serif"; g.textAlign = "center";
-  g.fillText("◀ Vorige", 165, 392); g.fillText(guide.playing ? "❚❚ Pauze" : "▶ Beluister", 512, 392);
-  g.fillStyle = "#f07a2a"; g.fillText(guide.i === r.length - 1 ? "Afronden ✓" : "Volgende ▶", 859, 392);
+  const canPlay = !!(s.audio || (tour.tts !== false && hasTTS && s.text));
+  g.fillStyle = "rgba(255,255,255,.14)"; g.fillRect(0, 340, 330, 76); g.fillRect(347, 340, 330, 76); g.fillRect(694, 340, 330, 76);
+  g.fillStyle = "rgba(255,255,255,.08)"; g.fillRect(0, 430, 505, 80); g.fillRect(519, 430, 505, 80);
+  g.font = "600 34px sans-serif"; g.textAlign = "center";
+  g.fillStyle = guide.i === 0 ? "rgba(255,255,255,.35)" : "#fff"; g.fillText("◀ Vorige", 165, 390);
+  g.fillStyle = canPlay ? "#fff" : "rgba(255,255,255,.35)"; g.fillText(guide.playing ? "❚❚ Pauze" : "▶ Beluister", 512, 390);
+  g.fillStyle = "#f07a2a"; g.fillText(guide.i === r.length - 1 ? "Afronden ✓" : "Volgende ▶", 859, 390);
+  g.font = "600 30px sans-serif"; g.fillStyle = "#fff"; g.fillText("■ Stop de rondleiding", 252, 482);
+  g.fillStyle = "#ff9b8a"; g.fillText("✕ VR verlaten", 771, 482);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  xrGuide = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.574), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false }));
-  xrGuide.renderOrder = 4;
+  xrGuide = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4 * H / W), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false }));
+  xrGuide.renderOrder = 4; xrGuide.userData.H = H; xrGuide.userData.step = guide.i;
+  if (prev && !front) { xrGuide.position.copy(prev.p); xrGuide.quaternion.copy(prev.q); world.add(xrGuide); return; }
   const cam = renderer.xr.getCamera();
+  if (front) { placeInFront(xrGuide, 1.4); xrGuide.position.y -= 0.35; const hp = new THREE.Vector3().setFromMatrixPosition(cam.matrixWorld); xrGuide.lookAt(hp.x, hp.y - 0.1, hp.z); xrGuide.renderOrder = 4; return; }
   const head = s.view.mode === "walk" ? new THREE.Vector3().fromArray(s.view.pos).add(new THREE.Vector3(0, EYE, 0)) : new THREE.Vector3().setFromMatrixPosition(cam.matrixWorld);
   const d = focusPoint(s).sub(head); d.y = 0; d.normalize();
   xrGuide.position.copy(head).addScaledVector(d, 1.4); xrGuide.position.y = head.y - 0.5;
   xrGuide.lookAt(head.x, head.y - 0.2, head.z);
   world.add(xrGuide);
 }
-function xrGuidePress(uv) { if (uv.y > 80 / 420) return; if (uv.x < 0.33) gotoStep(guide.i - 1); else if (uv.x > 0.67) nextStep(); else $("#gPlay").onclick(); }
+function xrGuidePress(uv) {
+  const y = (1 - uv.y) * xrGuide.userData.H;
+  if (y >= 430) { if (uv.x < 0.5) { stopGuide(); showXRMenu("Rondleiding gestopt. Kijk zelf verder rond."); } else exitVR(); return; }
+  if (y < 340) return;
+  if (uv.x < 0.33) gotoStep(guide.i - 1); else if (uv.x > 0.67) nextStep(); else $("#gPlay").onclick();
+}
+
+function fitText(g, t, w) { if (g.measureText(t).width <= w) return t; while (t.length > 1 && g.measureText(t + "…").width > w) t = t.slice(0, -1); return t.trimEnd() + "…"; }
+/* VR menu: open with B/Y (or A/X, or the side grip); start/stop the tour, leave VR */
+let xrMenu = null, xrMenuBtns = [], xrBtnLatch = false;
+function hideXRMenu() { if (xrMenu) { world.remove(xrMenu); xrMenu.material.map.dispose(); xrMenu = null; } }
+function exitVR() { hideXRMenu(); hideXRGuide(); try { renderer.xr.getSession()?.end(); } catch (e) {} }
+function xrMenuItems() {
+  const items = [], r = route();
+  if (r.length && !guide.on) items.push({ label: `▶ Start de rondleiding (${r.length} ${r.length === 1 ? "stap" : "stappen"})`, primary: true, fn: () => { hideXRMenu(); startGuide(0); } });
+  if (guide.on) {
+    items.push({ label: `▶ Verder met de rondleiding (stap ${guide.i + 1})`, primary: true, fn: () => showXRGuide(true) });
+    items.push({ label: "■ Stop de rondleiding", fn: () => { stopGuide(); showXRMenu("Rondleiding gestopt. Kijk zelf verder rond."); } });
+  }
+  items.push({ label: "Zelf rondkijken (menu sluiten)", fn: hideXRMenu });
+  items.push({ label: "✕ VR verlaten", danger: true, fn: exitVR });
+  return items;
+}
+function showXRMenu(msg) {
+  hideXRMenu(); if (!renderer.xr.isPresenting) return;
+  hideXRGuide();
+  const items = xrMenuItems(), W = 1024, BH = 88, GAP = 14;
+  const c = document.createElement("canvas"); c.width = W;
+  const mg = c.getContext("2d"); mg.font = "30px sans-serif";
+  const msgLines = []; if (msg) { let line = ""; for (const w of msg.split(" ")) { if (mg.measureText(line + w).width > 930) { msgLines.push(line); line = ""; } line += w + " "; } msgLines.push(line); }
+  const top = 120 + msgLines.length * 40 + (msg ? 16 : 0), H = top + items.length * (BH + GAP) + 64;
+  c.height = H; const g = c.getContext("2d");
+  g.fillStyle = "rgba(12,16,19,.95)"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#f07a2a"; g.fillRect(0, 0, W, 8);
+  g.fillStyle = "#fff"; g.font = "600 44px sans-serif"; g.fillText(fitText(g, tour?.title || "Werftour", 944), 40, 74);
+  g.font = "30px sans-serif"; g.fillStyle = "rgba(255,255,255,.8)"; msgLines.forEach((l, i) => g.fillText(l, 40, 122 + i * 40));
+  xrMenuBtns = items.map((it, i) => {
+    const y0 = top + i * (BH + GAP);
+    g.fillStyle = it.primary ? "#e2600c" : it.danger ? "rgba(255,120,100,.18)" : "rgba(255,255,255,.12)"; g.fillRect(40, y0, W - 80, BH);
+    g.fillStyle = it.danger ? "#ffb4a6" : "#fff"; g.font = "600 36px sans-serif"; g.fillText(it.label, 72, y0 + 56);
+    return { ...it, y0, y1: y0 + BH };
+  });
+  g.fillStyle = "rgba(255,255,255,.55)"; g.font = "26px sans-serif"; g.fillText("Richt en druk op de trigger. Menu terug openen: knop B of Y (of de zijknop).", 40, H - 24);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  xrMenu = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1 * H / W), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false }));
+  xrMenu.userData.H = H;
+  placeInFront(xrMenu, 1.4); xrMenu.renderOrder = 6;
+}
+function xrMenuPress(uv) { const y = (1 - uv.y) * xrMenu.userData.H; const b = xrMenuBtns.find(b => y >= b.y0 && y <= b.y1 && uv.x > 40 / 1024 && uv.x < 984 / 1024); if (b) b.fn(); }
+function toggleXRMenu() { if (!renderer.xr.isPresenting) return; if (xrMenu) hideXRMenu(); else showXRMenu(); }
+function pollXRButtons() {
+  const s = renderer.xr.getSession(); if (!s) return; let p = false;
+  for (const src of s.inputSources) { const b = src.gamepad?.buttons; if (b && (b[4]?.pressed || b[5]?.pressed)) p = true; }
+  if (p && !xrBtnLatch) toggleXRMenu(); xrBtnLatch = p;
+}
 
 const stepLabel = s => scene(s.scene)?.name || "?";
 function renderGuideSide() {
@@ -2563,7 +2637,7 @@ renderer.setAnimationLoop(() => {
   if (screen !== "app") return;
   const xr = renderer.xr.isPresenting;
   if (guide.tween) stepTween(performance.now());
-  if (xr) { if (M) { if (!guide.tween) xrLocomotion(dt); rig.position.copy(player); } }
+  if (xr) { pollXRButtons(); if (M) { if (!guide.tween) xrLocomotion(dt); rig.position.copy(player); } }
   else if (!cur) { /* empty project */ }
   else if (view === "pano") {
     camera.rotation.set(deg(pitch), -deg(yaw), 0);

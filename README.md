@@ -49,8 +49,14 @@ Heb je de tour aangepast? Stuur hem gewoon opnieuw, de oude versie op de bril wo
 (zoals eduroam) blokkeren dat. Zet dan de laptop en de Quest op de hotspot van een gsm. Als alternatief
 kan je de tour exporteren en openen via de [VR-viewer starter](https://github.com/ind-ing-bouwkunde-vr/vr-viewer).
 
-**In VR:** richt de straal en druk op de trigger. In een BIM-model stap je met de linker stick en draai
-je met de rechter stick (in stappen van 30°, tegen misselijkheid).
+**In VR:**
+
+- Richt de straal en druk op de trigger om een icoontje of knop te kiezen.
+- Bij de start verschijnt het **VR-menu**: *Start de rondleiding*, *Zelf rondkijken* of *VR verlaten*.
+  Je opent het menu altijd opnieuw met **knop B of Y** (of A/X, of de zijknop).
+- Tijdens de rondleiding zie je een paneel met **Vorige · Beluister/Pauze · Volgende**, en daaronder
+  **Stop de rondleiding** en **VR verlaten**. De uitleg wordt voorgelezen of je hoort de ingesproken audio.
+- In een BIM-model stap je met de linker stick en draai je met de rechter stick (in stappen van 30°, tegen misselijkheid).
 
 ## Veiligheid en gezondheid
 
