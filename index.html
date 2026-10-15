@@ -246,6 +246,15 @@ input[type=file]{display:none}
 .safelist{margin:0;padding-left:20px;line-height:1.5}
 .ttsbox{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:var(--r);padding:10px;margin-top:4px}
 .ttsbox select{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:4px 6px}
+.samenbar{position:absolute;left:12px;top:12px;z-index:6;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-left:4px solid #f2b400;border-radius:10px;padding:10px 12px;max-width:min(360px,calc(100% - 24px));box-shadow:0 6px 24px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:8px;font-size:13px}
+.samenbar .sbh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.samenbar .sbh b{font-family:var(--f-display);font-size:15px}
+.samenbar .sbcode{font-family:var(--f-mono);color:var(--accent);letter-spacing:.08em}
+.samenbar .sbl{display:flex;flex-direction:column;gap:2px;max-height:160px;overflow:auto}
+.samenbar .sbl div{display:flex;justify-content:space-between;gap:10px}
+.samenbar .btn.on{background:#f2b400;color:#111;border-color:#f2b400}
+.pointing #gl{cursor:crosshair!important}
+.samenchk{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;line-height:1.45}
 .qinput:focus{border-color:var(--accent);outline:none}
 .qhome .btn.primary{font-size:18px;padding:10px 20px}
 .vrbig{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);z-index:4;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 24px)}
@@ -338,6 +347,7 @@ input[type=file]{display:none}
       <section class="mode-card">
         <h2>Code van de laptop</h2>
         <div class="row"><input id="qCodeIn" class="qinput" maxlength="7" placeholder="K7P 3QX" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Code van de laptop"><button class="btn primary" id="qGo">Openen</button></div>
+        <label class="f" style="max-width:320px">Je naam (optioneel, voor de docent)<input id="qName" maxlength="24" autocomplete="off" placeholder="bv. Lotte"></label>
         <div id="qProg" class="col" hidden><div class="bar"><i id="qBar"></i></div><p class="hint" id="qMsg"></p></div>
       </section>
       <section class="projects">
@@ -464,6 +474,7 @@ input[type=file]{display:none}
       </div>
       <button class="vbig" id="vBig" hidden aria-label="Video afspelen">▶</button>
       <div class="vrbig" id="vrBig" hidden></div>
+      <div class="samenbar" id="samenBar" hidden></div>
       <div class="empty" id="empty" hidden></div>
       <div class="pin" id="pin" hidden></div>
       <div class="picker" id="picker" hidden></div>
@@ -712,6 +723,11 @@ function clearStage() {
   cur = null; M = null; modelRoot.clear(); sphere.visible = false; world.background = DARK; xrGroup.clear(); view = "pano";
 }
 async function go(id, keepView) {
+  const f = renderer.xr.isPresenting && cur && id !== cur.id;
+  if (f) await fadeOut();
+  try { return await goInner(id, keepView); } finally { if (f) fadeIn(); }
+}
+async function goInner(id, keepView) {
   const s = scene(id); if (!s) return;
   if (!isVideo(s)) stopVideo();
   cur = s; selHs = null; moving = false; hideBim(); hidePicker();
@@ -819,6 +835,12 @@ function pick(e, objects) {
 }
 function clickAt(e) {
   if (!cur) return;
+  if (samenPointing) {
+    let p;
+    if (M) { const hit = pick(e, M.colliders); if (!hit) return; p = { t: "p", sc: cur.id, pos: hit.point.toArray().map(r3) }; }
+    else { const q = pick(e); p = { t: "p", sc: cur.id, yaw: r1(q.yaw), pitch: r1(q.pitch) }; }
+    samenBroadcast(p); showPointer(p); setPointing(false); return;
+  }
   if (mode === "edit") {
     let p;
     if (M) { const hit = pick(e, M.colliders); if (!hit) return; const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld); p = { pos: hit.point.clone().addScaledVector(n, 0.15).toArray().map(x => +x.toFixed(3)) }; }
@@ -977,6 +999,7 @@ function activate(h) {
   if (isVideo(cur) && !vid.paused) { vid.pause(); vState.resume = true; }
   const xr = renderer.xr.isPresenting;
   const body = $("#cardBody"); body.innerHTML = "";
+  openHs = h; samen.openedByTeacher = samen.applying;
   blobUrls.forEach(u => URL.revokeObjectURL(u)); blobUrls = [];
   const add = (tag, props = {}) => { const el = Object.assign(document.createElement(tag), props); body.appendChild(el); return el; };
   add("h3", { textContent: h.title || TYPES[h.type].label });
@@ -995,7 +1018,7 @@ function activate(h) {
       const b = document.createElement("button"); b.className = "opt"; b.textContent = "ABC"[i] + ". " + o;
       b.addEventListener("click", () => {
         if (!fb.hidden) return;
-        const ok = i === +h.correct; if (!(h.id in answers)) answers[h.id] = ok;
+        const ok = i === +h.correct; if (!(h.id in answers)) { answers[h.id] = ok; samenSend({ t: "ans", hs: h.id, ok, title: h.title || "Vraag" }); }
         b.classList.add(ok ? "ok" : "bad"); opts.children[+h.correct]?.classList.add("ok");
         fb.hidden = false; fb.className = "fb " + (ok ? "ok" : "bad"); fb.textContent = ok ? "Juist." : "Niet juist.";
         ex.hidden = !h.explain; render();
@@ -1027,7 +1050,7 @@ function activate(h) {
   }
 }
 function closeCard() {
-  openQuiz = null;
+  openQuiz = null; openHs = null;
   $("#cardBody").querySelectorAll("audio,video").forEach(m => { try { m.pause(); } catch (e) {} });
   $("#card").hidden = true; delete $("#card").dataset.busy; hideXRCard();
   if (vState.resume && isVideo(cur)) { vState.resume = false; playVideo(); }
@@ -1821,8 +1844,10 @@ function showXRQuiz(h, body) {
     return { c, H, btns };
   };
   const answer = i => {
-    chosen = i; const ok = i === +h.correct; if (!(h.id in answers)) answers[h.id] = ok;
-    const dom = body.querySelectorAll(".opt")[opts.findIndex(x => x.i === i)]; if (dom) dom.click();   /* keeps the page card and the score in sync */
+    chosen = i; const ok = i === +h.correct;
+    const dom = body.querySelectorAll(".opt")[opts.findIndex(x => x.i === i)];
+    if (dom) dom.click();   /* the page card records the answer, the score and tells the teacher */
+    else if (!(h.id in answers)) { answers[h.id] = ok; samenSend({ t: "ans", hs: h.id, ok, title: h.title || "Vraag" }); }
     rebuild(); render();
   };
   const rebuild = () => {
@@ -1859,15 +1884,26 @@ const controllers = [0, 1].map(i => {
 let snapLatch = false;
 function xrLocomotion(dt) {
   const s = renderer.xr.getSession(); if (!s || !M) return;
-  let fwd = 0, strafe = 0, turn = 0;
+  let fwd = 0, strafe = 0, turn = 0, ty = 0;
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp || gp.axes.length < 4) continue;
     const x = gp.axes[2], y = gp.axes[3];
     if (src.handedness === "left") { if (Math.abs(y) > 0.15) fwd = -y; if (Math.abs(x) > 0.15) strafe = x; }
-    else if (src.handedness === "right") turn = x;
+    else if (src.handedness === "right") { turn = x; ty = y; }
   }
-  if (Math.abs(turn) > 0.7 && !snapLatch) { snapLatch = true; rig.rotation.y -= Math.sign(turn) * deg(30); }
-  if (Math.abs(turn) < 0.3) snapLatch = false;
+  if (samen.on && samen.follow) { fwd = 0; strafe = 0; ty = 0; }   /* following the teacher: look around, the teacher moves you */
+  /* right stick forward: aim a teleport arc, let go to jump there */
+  const rc = controllers.find(c => c.userData.hand === "right");
+  if (rc && ty < -0.6 && Math.abs(turn) < 0.55) { tp.aiming = true; xrTeleportAim(rc); }
+  else if (tp.aiming && Math.abs(ty) < 0.3) {
+    tp.aiming = false; tpLine.visible = false; tpRing.visible = false;
+    if (tp.hit) { const to = tp.hit.clone(); tp.hit = null; fadeXR(() => { player.copy(to); dropToFloor(true); }); }
+  }
+  if (!tp.aiming) {
+    if (Math.abs(turn) > 0.7 && !snapLatch) { snapLatch = true; rig.rotation.y -= Math.sign(turn) * deg(30); comfort.turnT = performance.now(); }
+    if (Math.abs(turn) < 0.3) snapLatch = false;
+  }
+  comfort.moving = !!(fwd || strafe);
   const q = renderer.xr.getCamera().getWorldQuaternion(new THREE.Quaternion());
   const d = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
   walk(dt, fwd, strafe, rad(Math.atan2(d.x, -d.z)));
@@ -2145,13 +2181,14 @@ async function gotoStep(i) {
   stopNarration(); closeCard(); hideBim();
   if (!scene(s.scene)) { toast("Het standpunt van deze stap bestaat niet meer."); return; }
   if (!cur || cur.id !== s.scene) { await go(s.scene, true); if (guide.i !== my || !guide.on) return; applyView(s.view); }
+  else if (renderer.xr.isPresenting) { if (M && s.view.mode === "walk") await fadeXR(() => applyView(s.view)); }
   else tweenTo(s.view);
   if (renderer.xr.isPresenting) faceInXR(s);
   render(); showXRGuide();
-  narrate(s);
+  if (!(samen.on && samen.follow)) narrate(s);
   if (s.open && s.hotspot) setTimeout(() => { const h = cur?.hotspots.find(x => x.id === s.hotspot); if (h && guide.on && guide.i === my) activate(h); }, 1600);
 }
-let openQuiz = null;
+let openQuiz = null, openHs = null;
 function autoNext() { if (!guide.on) return; if (openQuiz && !(openQuiz.id in answers)) { guide.timer = setTimeout(autoNext, 1500); return; } nextStep(); }
 function nextStep() { if (!guide.on) return; if (guide.i < route().length - 1) gotoStep(guide.i + 1); else endGuide(); }
 function endGuide() {
@@ -2323,7 +2360,7 @@ function drawHand() {
     if (xrHandStep !== guide.i) { xrHandStep = guide.i; xrHandPage = 0; }
     g.fillStyle = "rgba(255,255,255,.15)"; g.fillRect(40, 116, 944, 8);
     g.fillStyle = "#f07a2a"; g.fillRect(40, 116, 944 * (guide.i + 1) / r.length, 8);
-    g.font = "600 28px sans-serif"; g.fillText(`STAP ${guide.i + 1} VAN ${r.length}`, 40, 170);
+    g.font = "600 28px sans-serif"; g.fillText(`STAP ${guide.i + 1} VAN ${r.length}` + (samen.on && samen.follow ? "  ·  DE DOCENT LEIDT" : ""), 40, 170);
     g.fillStyle = "#fff"; g.font = "600 44px sans-serif";
     const tl = wrapLines(g, st.title || "", 944).slice(0, 2); tl.forEach((l, i) => g.fillText(l, 40, 226 + i * 54));
     const y0 = 226 + tl.length * 54 + 14, LH = 46, yMax = 820;
@@ -2339,17 +2376,21 @@ function drawHand() {
       B(764, 832, 220, 60, "▼ verder", () => { xrHandPage++; drawHand(); }, "", xrHandPage === pages - 1);
     }
     const canPlay = !!(st.audio || (tour.tts !== false && hasTTS && st.text));
-    B(40, 910, 296, 92, "◀ Vorige", () => gotoStep(guide.i - 1), "", guide.i === 0);
+    const led = samen.on && samen.follow;
+    B(40, 910, 296, 92, "◀ Vorige", () => gotoStep(guide.i - 1), "", guide.i === 0 || led);
     B(364, 910, 296, 92, guide.playing ? "❚❚ Pauze" : "▶ Beluister", () => $("#gPlay").onclick(), "", !canPlay);
-    B(688, 910, 296, 92, guide.i === r.length - 1 ? "Afronden ✓" : "Volgende ▶", () => nextStep(), "primary");
-    B(40, 1022, 944, 70, "■ Stop de rondleiding", () => { stopGuide(); xrHandMsg = "Rondleiding gestopt. Kijk zelf verder rond: richt op een icoontje en druk op de trigger."; drawHand(); });
+    B(688, 910, 296, 92, guide.i === r.length - 1 ? "Afronden ✓" : "Volgende ▶", () => nextStep(), "primary", led);
+    if (led) B(40, 1022, 944, 70, "Zelf rondlopen (niet meer volgen)", () => setFollow(false));
+    else B(40, 1022, 944, 70, "■ Stop de rondleiding", () => { stopGuide(); xrHandMsg = "Rondleiding gestopt. Kijk zelf verder rond: richt op een icoontje en druk op de trigger."; drawHand(); });
   } else {
     xrHandStep = -1;
     g.font = "34px sans-serif"; g.fillStyle = "rgba(255,255,255,.92)";
-    const msg = xrHandMsg || (r.length ? "Volg de begeleide rondleiding, of kijk zelf rond: richt met je rechterhand op een icoontje en druk op de trigger." : "Kijk zelf rond: richt met je rechterhand op een icoontje en druk op de trigger.");
+    const msg = xrHandMsg || (samen.on ? (samen.follow ? "Samen-les: de docent leidt. Kijk vrij rond; je beweegt mee met de docent. Wil je zelf rondlopen, druk dan op de knop hieronder." : "Samen-les: je loopt nu zelf rond. Druk op 'Volg de docent' om weer mee te gaan.") : r.length ? "Volg de begeleide rondleiding, of kijk zelf rond: richt met je rechterhand op een icoontje en druk op de trigger." : "Kijk zelf rond: richt met je rechterhand op een icoontje en druk op de trigger.");
     wrapLines(g, msg, 944).slice(0, 8).forEach((l, i) => g.fillText(l, 40, 190 + i * 46));
-    if (r.length) B(40, 600, 944, 120, `▶ Start de rondleiding (${r.length} ${r.length === 1 ? "stap" : "stappen"})`, () => { xrHandMsg = ""; startGuide(0); }, "primary");
+    if (samen.on) B(40, 600, 944, 120, samen.follow ? "Zelf rondlopen" : "▶ Volg de docent", () => setFollow(!samen.follow), samen.follow ? "" : "primary");
+    else if (r.length) B(40, 600, 944, 120, `▶ Start de rondleiding (${r.length} ${r.length === 1 ? "stap" : "stappen"})`, () => { xrHandMsg = ""; startGuide(0); }, "primary");
   }
+  if (M && !st) B(40, 760, 944, 64, "Tunnelzicht bij bewegen: " + (comfort.vignOn ? "aan" : "uit"), () => { comfort.vignOn = !comfort.vignOn; try { localStorage.setItem("werftour-vign", comfort.vignOn ? "1" : "0"); } catch (e) {} drawHand(); });
   g.fillStyle = "rgba(255,255,255,.45)"; g.font = "24px sans-serif";
   if (!st) wrapLines(g, "Richt met je rechterhand en druk op de trigger, of tik met je rechtercontroller op het scherm. Knop B of Y: scherm verbergen of tonen.", 944).slice(0, 2).forEach((l, i, arr) => g.fillText(l, 40, HH - 36 - (arr.length - 1 - i) * 32));
   xrHandBtns = btns; xrHandTex.needsUpdate = true;
@@ -2543,6 +2584,183 @@ $("#stAudioFile").onchange = async e => {
 };
 $("#stRec").onclick = () => { const s = selStep; if (s) recordAudio(s, data => { s.audio = data; }); };
 
+/* ---------- VR comfort: teleport arc, tunnel vision while moving, short black fades ---------- */
+const comfort = { k: 0, fade: 0, fadeTo: 0, onBlack: [], moving: false, turnT: 0, vignOn: (() => { try { return localStorage.getItem("werftour-vign") !== "0"; } catch (e) { return true; } })() };
+const vign = (() => {
+  const c = document.createElement("canvas"); c.width = c.height = 512; const g = c.getContext("2d");
+  const gr = g.createRadialGradient(256, 256, 0, 256, 256, 256);
+  gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(0.09, "rgba(0,0,0,0)"); gr.addColorStop(0.17, "rgba(0,0,0,.9)"); gr.addColorStop(1, "rgba(0,0,0,1)");
+  g.fillStyle = gr; g.fillRect(0, 0, 512, 512);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false, depthWrite: false, opacity: 0 }));
+  m.position.z = -0.25; m.renderOrder = 9998; m.visible = false; camera.add(m); return m;
+})();
+const fader = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 12), new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide, transparent: true, depthTest: false, depthWrite: false, opacity: 0 }));
+fader.renderOrder = 9999; fader.visible = false; camera.add(fader);
+function fadeOut() {
+  if (!renderer.xr.isPresenting) return Promise.resolve();
+  return new Promise(ok => { comfort.fadeTo = 1; comfort.onBlack.push(ok); setTimeout(ok, 600); });
+}
+function fadeIn() { comfort.fadeTo = 0; }
+async function fadeXR(fn) { await fadeOut(); try { await fn(); } finally { fadeIn(); } }
+function updateComfort(dt, xr) {
+  if (!M) comfort.moving = false;
+  const want = xr && comfort.vignOn && (comfort.moving || !!guide.tween || performance.now() - comfort.turnT < 250) ? 1 : 0;
+  comfort.k += (want - comfort.k) * Math.min(1, dt * 9);
+  vign.visible = xr && comfort.k > 0.01;
+  if (vign.visible) { const sc = 1 + 1.3 * (1 - comfort.k); vign.scale.set(sc, sc, 1); vign.material.opacity = comfort.k; }
+  const sp = dt / 0.16; comfort.fade = comfort.fadeTo > comfort.fade ? Math.min(comfort.fadeTo, comfort.fade + sp) : Math.max(comfort.fadeTo, comfort.fade - sp * 0.8);
+  fader.visible = xr && comfort.fade > 0.001; fader.material.opacity = comfort.fade;
+  if (comfort.fade >= 0.999 && comfort.onBlack.length) { const l = comfort.onBlack; comfort.onBlack = []; l.forEach(f => f()); }
+  if (!xr) { comfort.moving = false; if (comfort.onBlack.length) { const l = comfort.onBlack; comfort.onBlack = []; l.forEach(f => f()); } }
+}
+const tpRay = new THREE.Raycaster(); tpRay.firstHitOnly = true;
+const TP_N = 48;
+const tpLine = new THREE.Line(new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array(TP_N * 3), 3)), new THREE.LineBasicMaterial({ color: 0x4fc3ff }));
+tpLine.frustumCulled = false; tpLine.visible = false; world.add(tpLine);
+const tpRing = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.3, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x4fc3ff, transparent: true, opacity: 0.9, depthTest: false }));
+tpRing.renderOrder = 5; tpRing.visible = false; world.add(tpRing);
+const tp = { aiming: false, hit: null };
+const tpO = new THREE.Vector3(), tpV = new THREE.Vector3(), tpP = new THREE.Vector3(), tpN = new THREE.Vector3(), tpM = new THREE.Matrix4();
+function xrTeleportAim(c) {
+  if (!M) return;
+  tpO.setFromMatrixPosition(c.matrixWorld); tpV.set(0, 0, -1).applyMatrix4(tpM.extractRotation(c.matrixWorld)).multiplyScalar(7.5);
+  const arr = tpLine.geometry.attributes.position.array; let n = 0, hit = null; tpP.copy(tpO);
+  for (let i = 0; i < TP_N - 1; i++) {
+    arr[n * 3] = tpP.x; arr[n * 3 + 1] = tpP.y; arr[n * 3 + 2] = tpP.z; n++;
+    const dt = 0.045; tpN.set(tpP.x + tpV.x * dt, tpP.y + tpV.y * dt, tpP.z + tpV.z * dt); tpV.y -= 9.8 * dt;
+    const seg = tpN.clone().sub(tpP), len = seg.length(); tpRay.set(tpP, seg.normalize()); tpRay.far = len;
+    const h = tpRay.intersectObjects(M.colliders, false)[0];
+    if (h) { hit = h; arr[n * 3] = h.point.x; arr[n * 3 + 1] = h.point.y; arr[n * 3 + 2] = h.point.z; n++; break; }
+    tpP.copy(tpN); if (tpP.y < M.box.min.y - 20) break;
+  }
+  tpLine.geometry.setDrawRange(0, n); tpLine.geometry.attributes.position.needsUpdate = true; tpLine.visible = true;
+  const ok = hit && hit.face && hit.face.normal.clone().transformDirection(hit.object.matrixWorld).y > 0.6;
+  tpLine.material.color.set(ok ? 0x4fc3ff : 0xff6a5a);
+  tp.hit = ok ? hit.point.clone() : null;
+  tpRing.visible = !!ok; if (ok) tpRing.position.copy(hit.point).y += 0.02;
+}
+
+/* ---------- pointer: the teacher points at something, everybody sees a pulsing ring ---------- */
+const pointerMark = new THREE.Mesh(new THREE.RingGeometry(0.62, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffc400, transparent: true, depthTest: false, side: THREE.DoubleSide }));
+pointerMark.renderOrder = 7; pointerMark.visible = false; world.add(pointerMark);
+let pointerT = 0;
+function showPointer(p) {
+  if (!cur || (p.sc && p.sc !== cur.id)) return;
+  pointerT = performance.now(); pointerMark.visible = true;
+  if (p.pos) { pointerMark.position.fromArray(p.pos); pointerMark.userData.size = 0.3; }
+  else { pointerMark.position.copy(dirFrom(p.yaw, p.pitch).multiplyScalar(6)); if (renderer.xr.isPresenting) pointerMark.position.y += 1.6; pointerMark.userData.size = 0.45; }
+  if (samen.on && !qSession) { if (renderer.xr.isPresenting) { xrHandMsg = "De docent wijst iets aan: zoek de gele ring."; if (!guide.on) drawHand(); } else toast("De docent wijst iets aan: zoek de gele ring."); }
+}
+function updatePointer(now) {
+  if (!pointerMark.visible) return;
+  const age = (now - pointerT) / 1000; if (age > 7) { pointerMark.visible = false; return; }
+  const sc = pointerMark.userData.size * (1 + 0.25 * Math.sin(age * 7)); pointerMark.scale.setScalar(sc);
+  pointerMark.lookAt(camera.getWorldPosition(gA));
+  pointerMark.material.opacity = age > 6 ? 7 - age : 1;
+}
+
+/* ---------- Samen-les: the teacher leads, headsets follow (scene, place, step, open icon, video) ---------- */
+const samen = { on: false, follow: true, conn: null, last: null, busy: false, pending: false, teacherHs: null, openedByTeacher: false, applying: false, posT: 0, code: "" };
+let samenPointing = false, samenTimer = 0;
+function samenSend(m) { try { if (samen.on && samen.conn && samen.conn.open) samen.conn.send(JSON.stringify(m)); } catch (e) {} }
+function samenState() {
+  return { t: "s", sc: cur?.id || null, g: guide.on ? guide.i : -1, hs: openHs && openHs.type !== "link" ? openHs.id : null,
+    pos: M && view === "walk" ? player.toArray().map(r3) : null, vp: isVideo(cur) ? !vid.paused : null, vt: isVideo(cur) ? r1(vid.currentTime) : null };
+}
+function samenBroadcast(m) {
+  if (!qSession) return; const str = JSON.stringify(m);
+  for (const r of qSession.conns) if (r.ready && r.conn?.open) { try { r.conn.send(str); } catch (e) {} }
+}
+function samenTick() {
+  const S = qSession; if (!S || !S.samen) return;
+  const st = samenState(), key = JSON.stringify({ ...st, vt: null }), now = performance.now();
+  if (key !== S.lastKey || now - (S.lastSent || 0) > 1000) { S.lastKey = key; S.lastSent = now; samenBroadcast(st); }
+}
+function setSamenTeacher(on) {
+  if (!qSession) return;
+  qSession.samen = on; clearInterval(samenTimer);
+  if (on) samenTimer = setInterval(samenTick, 250);
+  samenBroadcast({ t: "mode", samen: on });
+  if (on) { qSession.lastKey = ""; samenTick(); }
+  renderSamenBar();
+}
+function setPointing(on) { samenPointing = on; stage.classList.toggle("pointing", on); renderSamenBar(); if (on) toast("Klik in het beeld op wat je wil aanwijzen."); }
+function renderSamenBar() {
+  const el = $("#samenBar"), S = qSession;
+  el.hidden = !(S && S.samen && screen === "app"); if (el.hidden) return;
+  const ready = S.conns.filter(r => r.ready && r.alive !== false);
+  el.innerHTML = `<div class="sbh"><b>● Samen-les</b><span class="hint"></span><span class="sbcode"></span></div>
+    <div class="row"><button class="btn small" id="sbPoint">👉 Aanwijzen</button><button class="btn small" id="sbCall">Iedereen bij mij</button><button class="btn small" id="sbQr">QR-code</button><button class="btn small danger" id="sbStop">Les stoppen</button></div>
+    <div class="sbl"></div>`;
+  el.querySelector(".hint").textContent = ready.length ? `${ready.length} ${ready.length === 1 ? "bril volgt" : "brillen verbonden"}` : "wachten op brillen…";
+  el.querySelector(".sbcode").textContent = fmtCode(S.code);
+  $("#sbPoint").classList.toggle("on", samenPointing);
+  $("#sbPoint").onclick = () => setPointing(!samenPointing);
+  $("#sbCall").onclick = () => { samenBroadcast({ t: "call" }); S.lastKey = ""; samenTick(); toast("Alle brillen volgen je weer."); };
+  $("#sbQr").onclick = () => showQuestCard();
+  $("#sbStop").onclick = () => { stopQuestSession(true); renderSamenBar(); toast("De samen-les is gestopt. De tours blijven op de brillen."); };
+  const list = el.querySelector(".sbl");
+  for (const r of S.conns.filter(r => r.ready)) {
+    const d = document.createElement("div"); const a = Object.values(r.answers || {}), good = a.filter(x => x).length;
+    d.innerHTML = "<span></span><span class='hint'></span>";
+    d.firstChild.textContent = (r.alive === false ? "○ " : r.follow === false ? "◐ " : "● ") + r.name;
+    d.lastChild.textContent = (r.alive === false ? "weg" : r.follow === false ? "loopt zelf" : "volgt") + (a.length ? ` · ${good}/${a.length} juist` : "");
+    list.appendChild(d);
+  }
+}
+/* headset side */
+function setFollow(on, quiet) {
+  if (samen.follow === on) return;
+  samen.follow = on; samenSend({ t: "st", follow: on });
+  if (on) { xrHandMsg = ""; if (samen.last) samenApply(samen.last, true); }
+  else { clearTimeout(samen.posT); if (guide.on) stopGuide(); if (!quiet) xrHandMsg = ""; }
+  if (renderer.xr.isPresenting) drawHand(); else if (!quiet) toast(on ? "Je volgt de docent weer." : "Je loopt nu zelf rond.");
+}
+async function samenApply(m, now) {
+  samen.last = m;
+  if (!samen.on || !samen.follow || !tour || screen !== "app") return;
+  if (samen.busy) { samen.pending = true; return; }
+  samen.busy = true; samen.applying = true;
+  try {
+    const r = route();
+    if (m.g >= 0 && r[m.g]) { if (!guide.on || guide.i !== m.g) { guide.on = true; await gotoStep(m.g); } }
+    else if (guide.on) stopGuide();
+    if (m.sc && cur?.id !== m.sc) await go(m.sc);
+    if (m.pos && M && cur?.id === m.sc && player.distanceTo(gB.fromArray(m.pos)) > 0.4) {
+      clearTimeout(samen.posT);
+      const jump = () => { const L = samen.last; if (!samen.follow || !L?.pos || !M) return; fadeXR(() => { player.fromArray(L.pos); dropToFloor(true); if (!renderer.xr.isPresenting && view !== "walk") setView("walk"); }); };
+      if (now) jump(); else samen.posT = setTimeout(jump, 700);
+    }
+    if (m.hs !== samen.teacherHs) {
+      samen.teacherHs = m.hs;
+      if (m.hs) { const h = cur?.hotspots.find(x => x.id === m.hs); if (h && h.type !== "link") activate(h); }
+      else if (openHs && samen.openedByTeacher) closeCard();
+    }
+    if (isVideo(cur) && m.vt != null) {
+      if (Math.abs(vid.currentTime - m.vt) > 1.5) { try { vid.currentTime = m.vt; } catch (e) {} }
+      if (m.vp && vid.paused && !openHs) playVideo(); else if (!m.vp && !vid.paused) vid.pause();
+    }
+  } catch (e) { console.warn(e); }
+  finally { samen.busy = false; samen.applying = false; if (samen.pending) { samen.pending = false; samenApply(samen.last); } }
+}
+function samenHandle(m) {
+  if (m.t === "s") samenApply(m);
+  else if (m.t === "p") showPointer(m);
+  else if (m.t === "call") { samen.follow = false; setFollow(true); if (renderer.xr.isPresenting) { xrHandMsg = "De docent roept iedereen bij zich."; drawHand(); } else toast("De docent roept iedereen bij zich."); }
+  else if (m.t === "mode") {
+    samen.on = !!m.samen; samen.follow = true;
+    if (samen.on && samen.last) samenApply(samen.last, true);
+    if (renderer.xr.isPresenting) { xrHandMsg = ""; drawHand(); } else toast(samen.on ? "Samen-les gestart: je volgt de docent." : "De samen-les is gestopt. Je kan zelf verder rondkijken.");
+  }
+}
+function samenLost() {
+  if (!samen.on) return;
+  samen.on = false; samen.conn = null; clearTimeout(samen.posT);
+  if (renderer.xr.isPresenting) { xrHandMsg = "De verbinding met de docent is verbroken. Je kan zelf verder rondkijken."; drawHand(); }
+  else toast("De verbinding met de docent is verbroken.");
+}
+const fnvHash = u8 => { let h = 0x811c9dc5; for (let i = 0; i < u8.length; i++) { h ^= u8[i]; h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + "-" + u8.length.toString(36); };
+
 /* ---------- Quest: send from the laptop, receive on the headset ---------- */
 const urlParams = new URLSearchParams(location.search);
 const questMode = urlParams.has("quest") || urlParams.has("q");
@@ -2600,31 +2818,20 @@ async function sendToQuest() {
     const [Peer, qrcode] = await Promise.all([loadPeer(), loadQR()]);
     progress(0.6, "Tour klaarmaken om te versturen…");
     const payload = await buildPayload();
+    payload.hash = fnvHash(payload.json) + payload.videos.map(v => "." + v.blob.size.toString(36)).join("");
     let peer = null, code = "";
     for (let i = 0; i < 4 && !peer; i++) {
       code = newCode();
       peer = await openPeer(Peer, PEER_PREFIX + code.toLowerCase()).catch(e => { if (e && e.type === "unavailable-id") return null; throw e; });
     }
     if (!peer) throw new Error("geen vrije code gevonden, probeer opnieuw");
-    qSession = { peer, code, conns: [], payload };
     const url = location.origin + location.pathname + "?q=" + code;
     const qr = qrcode(0, "M"); qr.addData(url); qr.make();
-    b.innerHTML = `<h3>Open op de Quest</h3>
-      <div class="qrwrap"><div class="qr"><img alt="QR-code om deze tour op de Quest te openen"></div>
-        <div class="qrtext"><p><b>Scan</b> deze QR-code met de Quest.</p><p>Of open op de Quest <span class="url"></span> en typ de code:</p><div class="qcode"></div></div></div>
-      <p class="hint">De tour wordt naar de bril gestuurd en blijft daar bewaard; daarna heb je de laptop niet meer nodig. Laat dit venster open tot elke bril ‘klaar’ toont. Meerdere brillen tegelijk kan.</p>
-      <p class="hint" id="qAudioWarn" hidden></p>
-      <div class="qconns" id="qConns"></div>
-      <div class="row"><button class="btn primary" id="qStop">Klaar</button></div>`;
-    b.querySelector(".qr img").src = qr.createDataURL(6, 2);
-    b.querySelector(".url").textContent = location.host + location.pathname + "?quest";
-    b.querySelector(".qcode").textContent = fmtCode(code);
-    { const n = route().filter(needsTts).length, w = $("#qAudioWarn"); if (n) { w.hidden = false; w.textContent = `Let op: ${n} ${n === 1 ? "stap" : "stappen"} van de rondleiding ${n === 1 ? "heeft" : "hebben"} nog geen audio. De Quest kan zelf niet voorlezen. Klik eerst bij Rondleiding (in Bewerken) op ‘🔊 Maak audio’ en stuur de tour daarna.`; } }
-    $("#qStop").onclick = () => stopQuestSession();
-    renderQConns();
+    qSession = { peer, code, conns: [], payload, qr: qr.createDataURL(6, 2), samen: false };
     peer.on("connection", conn => handleQuestConn(conn));
     peer.on("disconnected", () => { try { if (qSession?.peer === peer) peer.reconnect(); } catch (e) {} });
     peer.on("error", e => { if (e.type !== "peer-unavailable") console.warn(e); });
+    showQuestCard();
   } catch (err) {
     console.error(err); stopQuestSession(true);
     b.innerHTML = `<h3>Open op de Quest</h3><p></p><p class="hint">Tips: zet de laptop en de Quest op hetzelfde wifi-netwerk. Blokkeert het schoolnetwerk de verbinding, gebruik dan de hotspot van een gsm, of exporteer de tour en open hem via de VR-viewer starter.</p><div class="row"><button class="btn">Sluiten</button></div>`;
@@ -2632,11 +2839,39 @@ async function sendToQuest() {
     b.querySelector("button").onclick = closeCard; $("#card").dataset.busy = "1"; $("#card").hidden = false;
   }
 }
+function showQuestCard() {
+  const S = qSession, b = $("#cardBody"); if (!S) return;
+  b.innerHTML = `<h3>Open op de Quest</h3>
+    <div class="qrwrap"><div class="qr"><img alt="QR-code om deze tour op de Quest te openen"></div>
+      <div class="qrtext"><p><b>Scan</b> deze QR-code met de Quest.</p><p>Of open op de Quest <span class="url"></span> en typ de code:</p><div class="qcode"></div></div></div>
+    <label class="samenchk"><input type="checkbox" id="qSamen"><span><b>Samen-les</b>: de brillen blijven verbonden en volgen jou live. Ze gaan mee naar jouw standpunt, positie en stap van de rondleiding, en zien de icoontjes die jij opent. Studenten kijken zelf vrij rond. Jij geeft de uitleg.</span></label>
+    <p class="hint">De tour wordt naar de bril gestuurd en blijft daar bewaard. Heeft een bril deze versie al, dan wordt ze niet opnieuw verstuurd. Meerdere brillen tegelijk kan.</p>
+    <p class="hint" id="qAudioWarn" hidden></p>
+    <div class="qconns" id="qConns"></div>
+    <div class="row"><button class="btn primary" id="qStop">Klaar</button></div>`;
+  b.querySelector(".qr img").src = S.qr;
+  b.querySelector(".url").textContent = location.host + location.pathname + "?quest";
+  b.querySelector(".qcode").textContent = fmtCode(S.code);
+  { const n = route().filter(needsTts).length, w = $("#qAudioWarn"); if (n && !S.samen) { w.hidden = false; w.textContent = `Let op: ${n} ${n === 1 ? "stap" : "stappen"} van de rondleiding ${n === 1 ? "heeft" : "hebben"} nog geen audio. De Quest kan zelf niet voorlezen. Klik eerst bij Rondleiding (in Bewerken) op ‘🔊 Maak audio’ en stuur de tour daarna.`; } }
+  $("#qSamen").checked = !!S.samen;
+  $("#qSamen").onchange = e => { setSamenTeacher(e.target.checked); $("#qStop").textContent = e.target.checked ? "Start de les" : "Klaar"; };
+  $("#qStop").textContent = S.samen ? "Terug naar de les" : "Klaar";
+  $("#qStop").onclick = () => { if (qSession?.samen) { closeCard(); renderSamenBar(); } else stopQuestSession(); };
+  $("#card").dataset.busy = "1"; $("#card").hidden = false;
+  renderQConns();
+}
 function stopQuestSession(silent) {
-  if (qSession) { try { qSession.peer.destroy(); } catch (e) {} qSession = null; }
+  clearInterval(samenTimer); setPointing(false);
+  if (qSession) {
+    const S = qSession; qSession = null;
+    if (S.samen) { const str = JSON.stringify({ t: "mode", samen: false }); for (const r of S.conns) if (r.ready && r.conn?.open) try { r.conn.send(str); } catch (e) {} }
+    setTimeout(() => { try { S.peer.destroy(); } catch (e) {} }, 400);
+  }
+  renderSamenBar();
   if (!silent) closeCard();
 }
 function renderQConns() {
+  renderSamenBar();
   const el = $("#qConns"); if (!el || !qSession) return;
   if (!qSession.conns.length) { el.innerHTML = '<p class="hint">Wachten op een bril…</p>'; return; }
   el.innerHTML = "";
@@ -2651,15 +2886,13 @@ function renderQConns() {
 async function drainConn(conn) { const dc = conn.dataChannel; if (!dc) return; while (dc.bufferedAmount > 4 * 1048576) await new Promise(r => setTimeout(r, 25)); }
 function handleQuestConn(conn) {
   const session = qSession; if (!session) return;
-  const row = { name: "Bril " + (session.conns.length + 1), pct: 0, state: "verbinden…" };
+  const row = { name: "Bril " + (session.conns.length + 1), pct: 0, state: "verbinden…", conn, ready: false, answers: {}, follow: true };
   session.conns.push(row); renderQConns();
-  conn.on("open", async () => {
+  const send = async () => {
     try {
       row.state = "versturen…"; renderQConns();
       const { json, videos } = session.payload;
-      const head = { t: "werftour", v: 1, title: tour.title || "Tour", kind: tour.kind, json: json.byteLength, videos: videos.map(v => ({ id: v.id, size: v.blob.size, type: v.blob.type })) };
-      conn.send(JSON.stringify(head));
-      const total = head.json + head.videos.reduce((a, v) => a + v.size, 0) || 1; let sent = 0, n = 0;
+      const total = json.byteLength + videos.reduce((a, v) => a + v.blob.size, 0) || 1; let sent = 0, n = 0;
       const pump = async bytes => {
         for (let o = 0; o < bytes.byteLength; o += QCHUNK) {
           if (qSession !== session) throw new Error("gestopt");
@@ -2674,18 +2907,32 @@ function handleQuestConn(conn) {
       conn.send(JSON.stringify({ t: "end" }));
       row.pct = 1; row.state = "verstuurd, de bril slaat op…"; renderQConns();
     } catch (e) { row.state = "mislukt: " + (e.message || e); renderQConns(); }
+  };
+  const ready = () => { row.ready = true; row.alive = true; row.pct = 1; renderQConns(); if (session.samen) { try { conn.send(JSON.stringify({ t: "mode", samen: true })); conn.send(JSON.stringify(samenState())); } catch (e) {} } };
+  conn.on("open", () => {
+    const { json, videos } = session.payload;
+    const head = { t: "werftour", v: 2, id: tour.id, hash: session.payload.hash, samen: !!session.samen, title: tour.title || "Tour", kind: tour.kind, json: json.byteLength, videos: videos.map(v => ({ id: v.id, size: v.blob.size, type: v.blob.type })) };
+    conn.send(JSON.stringify(head));
   });
   conn.on("data", d => {
     if (typeof d !== "string") return;
-    try { const m = JSON.parse(d); if (m.t === "hello" && m.name) row.name = m.name; if (m.t === "done") row.state = "klaar ✓"; renderQConns(); } catch (e) {}
+    let m; try { m = JSON.parse(d); } catch (e) { return; }
+    if (m.t === "hello" && m.name) row.name = m.name;
+    else if (m.t === "need") send();
+    else if (m.t === "have") { row.state = "had deze versie al ✓"; ready(); }
+    else if (m.t === "done") { row.state = "klaar ✓"; ready(); }
+    else if (m.t === "st") row.follow = !!m.follow;
+    else if (m.t === "ans") row.answers[m.hs] = !!m.ok;
+    renderQConns();
   });
-  conn.on("close", () => { if (row.state !== "klaar ✓" && row.pct < 1) { row.state = "verbinding verbroken"; renderQConns(); } });
+  conn.on("close", () => { row.alive = false; if (!row.ready) row.state = "verbinding verbroken"; renderQConns(); });
   conn.on("error", e => { row.state = "fout: " + (e?.message || e?.type || e); renderQConns(); });
 }
-$("#questBtn").onclick = sendToQuest;
+$("#questBtn").onclick = () => qSession ? showQuestCard() : sendToQuest();
 
 /* headset side */
 function showQuestHome() {
+  if (samen.conn) { try { samen.conn.close(); } catch (e) {} samen.on = false; samen.conn = null; }
   stopGuide(); closeCard(); hideBim(); hidePicker();
   if (renderer.xr.isPresenting) renderer.xr.getSession()?.end();
   screen = "quest"; tour = null; clearStage(); resetVideo(); window.scrollTo(0, 0);
@@ -2725,7 +2972,7 @@ function showStartVR() {
   const el = $("#vrBig"); el.innerHTML = "";
   const add = (label, cls, fn) => { const b = document.createElement("button"); b.textContent = label; if (cls) b.className = cls; b.onclick = fn; el.appendChild(b); };
   add("▶ Start in VR", "", () => { el.hidden = true; enterVR(); });
-  if (route().length) add("Start in VR met rondleiding", "alt", async () => { el.hidden = true; closeCard(); startGuide(0); enterVR(); });
+  if (route().length && !samen.on) add("Start in VR met rondleiding", "alt", async () => { el.hidden = true; closeCard(); startGuide(0); enterVR(); });
   el.hidden = false; closeCard(); renderGuideBar();
 }
 function questStatus(msg, frac, isError) {
@@ -2740,6 +2987,7 @@ async function receiveFromLaptop(raw) {
   $("#qCodeIn").value = fmtCode(code);
   questStatus(`Verbinden met de laptop (code ${fmtCode(code)})…`, 0.02);
   let peer = null;
+  const myName = (() => { try { return localStorage.getItem("werftour-name") || ""; } catch (e) { return ""; } })() || "Quest " + Math.random().toString(36).slice(2, 5).toUpperCase();
   try {
     const Peer = await loadPeer();
     peer = await openPeer(Peer);
@@ -2748,16 +2996,24 @@ async function receiveFromLaptop(raw) {
       let head = null, buf = null, got = 0, vi = -1, vgot = 0, recv = 0, total = 1, done = false, last = 0;
       const vids = [];
       const to = setTimeout(() => no(new Error("de laptop antwoordt niet. Staat het venster ‘Open op de Quest’ nog open?")), 25000);
-      peer.on("error", e => { clearTimeout(to); no(new Error(e?.type === "peer-unavailable" ? "deze code is niet (meer) actief. Kijk de code op de laptop na." : (e?.message || e?.type || "verbindingsfout"))); });
-      conn.on("open", () => { clearTimeout(to); conn.send(JSON.stringify({ t: "hello", name: "Quest " + Math.random().toString(36).slice(2, 5).toUpperCase() })); questStatus("Verbonden, de tour komt binnen…", 0.03); });
+      peer.on("error", e => { clearTimeout(to); if (!done) no(new Error(e?.type === "peer-unavailable" ? "deze code is niet (meer) actief. Kijk de code op de laptop na." : (e?.message || e?.type || "verbindingsfout"))); });
+      conn.on("open", () => { clearTimeout(to); conn.send(JSON.stringify({ t: "hello", name: myName })); questStatus("Verbonden, de tour komt binnen…", 0.03); });
       conn.on("data", d => {
         if (typeof d === "string") {
-          const m = JSON.parse(d);
-          if (m.t === "werftour") { head = m; buf = new Uint8Array(m.json); total = m.json + m.videos.reduce((a, v) => a + v.size, 0) || 1; }
+          let m; try { m = JSON.parse(d); } catch (e) { return; }
+          if (m.t === "werftour") {
+            head = m; buf = new Uint8Array(m.json); total = m.json + m.videos.reduce((a, v) => a + v.size, 0) || 1;
+            lib.get("meta", m.id).then(ex => {
+              if (ex && ex.received && m.hash && ex.hash === m.hash) { done = true; conn.send(JSON.stringify({ t: "have" })); ok({ have: true, head, conn }); }
+              else conn.send(JSON.stringify({ t: "need" }));
+            }, () => conn.send(JSON.stringify({ t: "need" })));
+          }
           else if (m.t === "end") { done = true; ok({ head, buf, vids, conn }); }
+          else if (done) samenHandle(m);
+          else if (m.t === "s") samen.last = m;
           return;
         }
-        if (!head) return;
+        if (!head || done) return;
         const u = d instanceof ArrayBuffer ? new Uint8Array(d) : new Uint8Array(d.buffer, d.byteOffset, d.byteLength);
         let off = 0;
         while (off < u.length) {
@@ -2769,36 +3025,44 @@ async function receiveFromLaptop(raw) {
         recv += u.length;
         const now = performance.now(); if (now - last > 200) { last = now; questStatus(`‘${head.title}’ ontvangen: ${fmtMB(recv)} van ${fmtMB(total)}`, recv / total); }
       });
-      conn.on("close", () => { if (!done) no(new Error("de verbinding werd verbroken")); });
+      conn.on("close", () => { if (!done) no(new Error("de verbinding werd verbroken")); else if (samen.conn === conn) samenLost(); });
       conn.on("error", e => { if (!done) no(new Error(e?.message || "verbindingsfout")); });
     });
-    questStatus("Opslaan op de bril…", 1);
-    const t = JSON.parse(new TextDecoder().decode(res.buf));
-    if (!t || !Array.isArray(t.scenes)) throw new Error("dit is geen Werftour-tour");
-    const existing = t.id && await lib.get("meta", t.id);
-    if (existing && !existing.received) t.id = uid();   /* never overwrite an editable project on this device */
-    if (existing && existing.received) { try { const old = JSON.parse(await lib.get("data", t.id) || "{}"); for (const s of old.scenes || []) if (s.video?.startsWith("idb:")) await lib.del("blobs", s.video.slice(4)); } catch (e) {} }
-    t.id = t.id || uid();
-    let vs = 0;
-    for (let i = 0; i < res.head.videos.length; i++) {
-      const v = res.head.videos[i]; const blob = new Blob(res.vids[i] || [], { type: v.type || "video/mp4" });
-      const key = uid(); await lib.put("blobs", key, blob); vs += blob.size;
-      const s = t.scenes.find(x => x.id === v.id); if (s) { s.video = "idb:" + key; s.videoSize = blob.size; }
+    let id = res.head.id;
+    if (!res.have) {
+      questStatus("Opslaan op de bril…", 1);
+      const t = JSON.parse(new TextDecoder().decode(res.buf));
+      if (!t || !Array.isArray(t.scenes)) throw new Error("dit is geen Werftour-tour");
+      const existing = t.id && await lib.get("meta", t.id);
+      if (existing && !existing.received) t.id = uid();   /* never overwrite an editable project on this device */
+      if (existing && existing.received) { try { const old = JSON.parse(await lib.get("data", t.id) || "{}"); for (const s of old.scenes || []) if (s.video?.startsWith("idb:")) await lib.del("blobs", s.video.slice(4)); } catch (e) {} }
+      t.id = t.id || uid();
+      let vs = 0;
+      for (let i = 0; i < res.head.videos.length; i++) {
+        const v = res.head.videos[i]; const blob = new Blob(res.vids[i] || [], { type: v.type || "video/mp4" });
+        const key = uid(); await lib.put("blobs", key, blob); vs += blob.size;
+        const s = t.scenes.find(x => x.id === v.id); if (s) { s.video = "idb:" + key; s.videoSize = blob.size; }
+      }
+      t.viewerOnly = true; t.receivedAt = Date.now();
+      const data = JSON.stringify(t);
+      await lib.put("data", t.id, data);
+      await lib.put("meta", t.id, { id: t.id, name: t.title || "Tour", kind: t.kind, updated: t.receivedAt, size: data.length, videoSize: vs, thumb: t.scenes.find(s => s.thumb)?.thumb || "", scenes: t.scenes.length, received: true, hash: res.head.hash || "" });
+      id = t.id;
+      try { res.conn.send(JSON.stringify({ t: "done" })); } catch (e) {}
     }
-    t.viewerOnly = true; t.receivedAt = Date.now();
-    const data = JSON.stringify(t);
-    await lib.put("data", t.id, data);
-    await lib.put("meta", t.id, { id: t.id, name: t.title || "Tour", kind: t.kind, updated: t.receivedAt, size: data.length, videoSize: vs, thumb: t.scenes.find(s => s.thumb)?.thumb || "", scenes: t.scenes.length, received: true });
-    try { res.conn.send(JSON.stringify({ t: "done" })); } catch (e) {}
-    setTimeout(() => { try { peer.destroy(); } catch (e) {} }, 1500);
+    samen.on = !!res.head.samen; samen.follow = true; samen.code = code; samen.teacherHs = null;
+    samen.conn = res.conn;
     questStatus(null); renderQuestList();
-    await openReceived(t.id);
+    if (!(screen === "app" && tour?.id === id)) await openReceived(id);
+    if (samen.on) { toast("Samen-les: je volgt de docent."); if (samen.last) samenApply(samen.last, true); }
   } catch (err) {
     console.error(err); try { peer?.destroy(); } catch (e) {}
     questStatus("Dat lukte niet: " + (err?.message || err) + " Tip: zet de Quest en de laptop op hetzelfde wifi-netwerk.", 0, true);
   }
 }
 $("#qGo").onclick = () => receiveFromLaptop($("#qCodeIn").value);
+try { $("#qName").value = localStorage.getItem("werftour-name") || ""; } catch (e) {}
+$("#qName").addEventListener("input", e => { try { localStorage.setItem("werftour-name", e.target.value.trim()); } catch (er) {} });
 $("#qCodeIn").addEventListener("keydown", e => { if (e.key === "Enter") receiveFromLaptop($("#qCodeIn").value); });
 $("#qCodeIn").addEventListener("input", e => { const v = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 6); e.target.value = v.length > 3 ? v.slice(0, 3) + " " + v.slice(3) : v; });
 
@@ -2820,7 +3084,7 @@ renderer.setAnimationLoop(() => {
   if (screen !== "app") return;
   const xr = renderer.xr.isPresenting;
   if (guide.tween) stepTween(performance.now());
-  if (xr) { pollXRButtons(); updateHandPointer(); if (M) { if (!guide.tween) xrLocomotion(dt); rig.position.copy(player); } }
+  if (xr) { renderer.xr.updateCamera(camera); pollXRButtons(); updateHandPointer(); if (M) { if (!guide.tween) xrLocomotion(dt); rig.position.copy(player); } }
   else if (!cur) { /* empty project */ }
   else if (view === "pano") {
     camera.rotation.set(deg(pitch), -deg(yaw), 0);
@@ -2842,6 +3106,7 @@ renderer.setAnimationLoop(() => {
   }
   if (isVideo(cur)) { videoTick(); if (xr) for (const sp of xrGroup.children) sp.visible = hsVisible(sp.userData.h); }
   updateXRVideoPanel(performance.now());
+  updateComfort(dt, xr); updatePointer(performance.now());
   if (!xr) positionMarkers();
   updateArrow();
   xrGroup.visible = xr; markersEl.style.visibility = xr ? "hidden" : "visible";

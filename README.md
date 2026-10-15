@@ -56,7 +56,16 @@ kan je de tour exporteren en openen via de [VR-viewer starter](https://github.co
 - Tijdens de rondleiding staat er de volledige uitleg van de stap. Is de tekst lang, blader dan met **▼ verder**.
   Daaronder vind je **◀ Vorige · ▶ Beluister / ❚❚ Pauze · Volgende ▶** en **■ Stop de rondleiding**.
 - **✕ VR verlaten** staat altijd rechtsboven op het scherm. Met knop **B of Y** verberg of toon je het scherm. Sneltoetsen tijdens de rondleiding: **A** = volgende stap, **X** = beluisteren/pauze.
-- In een BIM-model stap je met de linker stick en draai je met de rechter stick (in stappen van 30°, tegen misselijkheid).
+- In een BIM-model: **rechter stick naar voren** = mikken met een boog, loslaten = **teleporteren** (met een korte zwarte overgang). Rechter stick links/rechts = draaien in stappen van 30°. Met de linker stick kan je ook lopen; dan verschijnt **tunnelzicht** tegen misselijkheid (uit te zetten op het handscherm).
+
+## Samen-les (de docent leidt)
+
+1. Open de tour op de laptop, klik op **Naar Quest** en vink **Samen-les** aan.
+2. De studenten scannen de QR-code (of typen de code). Wie de tour al had, krijgt hem niet opnieuw. Klik op **Start de les**.
+3. Linksboven verschijnt het **Samen-les-paneel**. Alle brillen volgen jou: ze gaan mee naar jouw standpunt, jouw positie in het BIM-model (met een zwarte overgang, nooit glijdend) en jouw stap van de rondleiding, en zien de icoontjes die jij opent. Studenten kijken zelf vrij rond; jij geeft de uitleg.
+4. **👉 Aanwijzen**: klik daarna in het beeld; bij iedereen verschijnt op die plek een gele, pulserende ring.
+5. Studenten kunnen op hun handscherm **Zelf rondlopen** kiezen. Met **Iedereen bij mij** haal je ze terug.
+6. Het paneel toont per bril of ze volgen en hoeveel vragen ze juist hadden. Studenten kunnen op de Quest-pagina hun naam invullen.
 
 **Gesproken uitleg op de Quest:** de Quest kan zelf geen tekst voorlezen. Laat de uitleg daarom op de laptop
 inspreken: open *Bewerken › Rondleiding* en klik op **🔊 Maak audio**. Een Vlaamse computerstem
