@@ -985,6 +985,7 @@ function activate(h) {
     if (h.image) add("img", { src: h.image, alt: h.title || "" });
     if (h.text) add("p", { textContent: h.text });
   } else if (h.type === "quiz") {
+    openQuiz = h;
     add("p", { textContent: h.question || "" });
     const opts = add("div", { className: "opts" });
     const fb = add("p", { className: "fb", hidden: true });
@@ -1018,7 +1019,7 @@ function activate(h) {
   close.onclick = closeCard; row.appendChild(close);
   $("#card").hidden = false; close.focus();
   if (xr) {
-    if (h.type === "quiz") showXRText(h.title, [h.question, "", ...(h.options || []).filter(Boolean).map((o, i) => "ABC"[i] + ". " + o), "", "Antwoord: " + "ABC"[+h.correct] + ". " + (h.explain || "")]);
+    if (h.type === "quiz") showXRQuiz(h, body);
     else if (h.type === "video" && mediaEl) showXRVideo(mediaEl, h.title);
     else if (h.type === "audio" && mediaEl) { mediaEl.play().catch(() => {}); showXRText(h.title, [h.text || "", "", "♪ Het geluidsfragment speelt af."]); }
     else if (h.type === "doc" || h.type === "web") showXRText(h.title, [h.text || "", "", "Open dit icoontje op een pc of gsm om het document of de website te bekijken."]);
@@ -1026,6 +1027,7 @@ function activate(h) {
   }
 }
 function closeCard() {
+  openQuiz = null;
   $("#cardBody").querySelectorAll("audio,video").forEach(m => { try { m.pause(); } catch (e) {} });
   $("#card").hidden = true; delete $("#card").dataset.busy; hideXRCard();
   if (vState.resume && isVideo(cur)) { vState.resume = false; playVideo(); }
@@ -1777,6 +1779,63 @@ function showXRVideo(videoEl, title) {
   xrCard = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8 / ar), new THREE.MeshBasicMaterial({ map: tex, depthTest: false }));
   placeInFront(xrCard, 2); videoEl.play().catch(() => {});
 }
+/* VR question: tap an answer with the controller, then see right/wrong and the explanation */
+function showXRQuiz(h, body) {
+  hideXRCard();
+  const W = 1024, opts = (h.options || []).map((o, i) => ({ o, i })).filter(x => x.o);
+  let chosen = null, hover = null;
+  const draw = () => {
+    const m = document.createElement("canvas").getContext("2d");
+    m.font = "36px sans-serif"; const q = wrapLines(m, h.question || "", 930);
+    m.font = "600 34px sans-serif"; const ol = opts.map(x => wrapLines(m, "ABC"[x.i] + ".  " + x.o, 860).slice(0, 3));
+    m.font = "32px sans-serif"; const ex = chosen != null && h.explain ? wrapLines(m, h.explain, 930).slice(0, 8) : [];
+    let H = 120 + q.length * 46 + 24 + ol.reduce((a, l) => a + l.length * 42 + 40 + 16, 0) + (chosen != null ? 70 + ex.length * 42 + 20 : 0) + 120;
+    const c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d"), btns = [];
+    g.fillStyle = "rgba(20,26,31,.97)"; g.beginPath(); g.roundRect(0, 0, W, H, 28); g.fill();
+    g.fillStyle = "#8b5cf6"; g.fillRect(0, 0, W, 10);
+    g.fillStyle = "#fff"; g.font = "600 46px sans-serif"; g.fillText(fitText(g, h.title || "Vraag", 930), 46, 80);
+    g.font = "36px sans-serif"; let y = 140; q.forEach(l => { g.fillText(l, 46, y); y += 46; }); y += 10;
+    opts.forEach((x, k) => {
+      const lines = ol[k], bh = lines.length * 42 + 40, ok = x.i === +h.correct;
+      let fill = "rgba(255,255,255,.12)", col = "#fff";
+      if (chosen != null) { if (ok) { fill = "#1f7a3d"; } else if (x.i === chosen) { fill = "#9b2c2c"; } else { col = "rgba(255,255,255,.55)"; } }
+      else if (hover === x.i) fill = "#3d4a55";
+      if (chosen == null && hover === x.i) { g.fillStyle = "#fff"; g.beginPath(); g.roundRect(40, y - 6, W - 80, bh + 12, 18); g.fill(); }
+      g.fillStyle = fill; g.beginPath(); g.roundRect(46, y, W - 92, bh, 14); g.fill();
+      g.fillStyle = col; g.font = "600 34px sans-serif"; lines.forEach((l, j) => g.fillText(l, 76, y + 48 + j * 42));
+      if (chosen != null && (ok || x.i === chosen)) { g.textAlign = "right"; g.fillText(ok ? "✓" : "✗", W - 76, y + 48); g.textAlign = "left"; }
+      if (chosen == null) btns.push({ x: 46, y, w: W - 92, h: bh, id: x.i, fn: () => answer(x.i) });
+      y += bh + 16;
+    });
+    if (chosen != null) {
+      const good = chosen === +h.correct;
+      g.fillStyle = good ? "#5ee08a" : "#ff8f80"; g.font = "600 40px sans-serif"; g.fillText(good ? "Juist!" : "Niet juist. Het juiste antwoord is " + "ABC"[+h.correct] + ".", 46, y + 50); y += 70;
+      g.fillStyle = "rgba(255,255,255,.9)"; g.font = "32px sans-serif"; ex.forEach(l => { g.fillText(l, 46, y + 30); y += 42; }); y += 20;
+    }
+    const cy = H - 104, cw = 360;
+    g.fillStyle = hover === "close" ? "#fff" : "transparent"; g.beginPath(); g.roundRect(W - 46 - cw - 6, cy - 6, cw + 12, 84, 18); g.fill();
+    g.fillStyle = chosen != null ? "#e2600c" : hover === "close" ? "#3d4a55" : "rgba(255,255,255,.14)"; g.beginPath(); g.roundRect(W - 46 - cw, cy, cw, 72, 14); g.fill();
+    g.fillStyle = "#fff"; g.font = "600 34px sans-serif"; g.textAlign = "center"; g.fillText(chosen != null ? "Sluiten ✓" : "Sluiten", W - 46 - cw / 2, cy + 48); g.textAlign = "left";
+    if (chosen == null) { g.fillStyle = "rgba(255,255,255,.5)"; g.font = "26px sans-serif"; g.fillText("Richt op een antwoord en druk op de trigger.", 46, cy + 46); }
+    btns.push({ x: W - 46 - cw, y: cy, w: cw, h: 72, id: "close", fn: () => closeCard() });
+    return { c, H, btns };
+  };
+  const answer = i => {
+    chosen = i; const ok = i === +h.correct; if (!(h.id in answers)) answers[h.id] = ok;
+    const dom = body.querySelectorAll(".opt")[opts.findIndex(x => x.i === i)]; if (dom) dom.click();   /* keeps the page card and the score in sync */
+    rebuild(); render();
+  };
+  const rebuild = () => {
+    const { c, H, btns } = draw();
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    const geo = new THREE.PlaneGeometry(1.5, 1.5 * H / W);
+    if (xrCard && xrCard.userData.quiz === h) { xrCard.material.map.dispose(); xrCard.material.map = tex; xrCard.geometry.dispose(); xrCard.geometry = geo; }
+    else { xrCard = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, side: THREE.DoubleSide })); placeInFront(xrCard, 1.7); }
+    xrCard.userData = { quiz: h, btns, W, H, press: uv => { const px = uv.x * W, py = (1 - uv.y) * H; const b = btns.find(b => px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h); if (b) b.fn(); },
+      hover: uv => { const px = uv ? uv.x * W : -1, py = uv ? (1 - uv.y) * H : -1; const b = uv && btns.find(b => px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h); const id = b ? b.id : null; if (id !== hover) { hover = id; rebuild(); } } };
+  };
+  rebuild();
+}
 function hideXRCard() { if (xrCard) { world.remove(xrCard); xrCard.material.map?.dispose(); xrCard = null; } }
 const controllers = [0, 1].map(i => {
   const c = renderer.xr.getController(i);
@@ -1790,6 +1849,7 @@ const controllers = [0, 1].map(i => {
     if (c.userData.handHit) { xrHandPress(c.userData.handHit); return; }
     if (xrHand && xrHand.visible && !(xrHand.userData.onHand && c.userData.hand === "left")) { const hh = ray.intersectObject(xrHand, false)[0]; if (hh) { xrHandPress(hh.uv); return; } }
     if (xrVPanel) { const vh = ray.intersectObject(xrVPanel, false)[0]; if (vh) { xrVideoPress(vh.uv); return; } }
+    if (xrCard && xrCard.userData.press) { const ch = ray.intersectObject(xrCard, false)[0]; if (ch) xrCard.userData.press(ch.uv); return; }
     if (xrCard) { closeCard(); hideBim(); return; }
     const hit = ray.intersectObjects(xrGroup.children)[0]; if (hit) { activate(hit.object.userData.h); return; }
     if (M) { const mh = ray.intersectObjects(M.meshes, false)[0]; if (mh) showBim(mh); }
@@ -2091,6 +2151,8 @@ async function gotoStep(i) {
   narrate(s);
   if (s.open && s.hotspot) setTimeout(() => { const h = cur?.hotspots.find(x => x.id === s.hotspot); if (h && guide.on && guide.i === my) activate(h); }, 1600);
 }
+let openQuiz = null;
+function autoNext() { if (!guide.on) return; if (openQuiz && !(openQuiz.id in answers)) { guide.timer = setTimeout(autoNext, 1500); return; } nextStep(); }
 function nextStep() { if (!guide.on) return; if (guide.i < route().length - 1) gotoStep(guide.i + 1); else endGuide(); }
 function endGuide() {
   stopGuide();
@@ -2118,7 +2180,7 @@ function narrate(s, preview = false) {
   stopNarration();
   const tok = guide.tok;
   const auto = () => !preview && guide.on && tour.guideAuto !== false;
-  const done = () => { if (tok !== guide.tok) return; guide.playing = false; renderGuideBar(); showXRGuide(); if (auto()) guide.timer = setTimeout(nextStep, 1800); };
+  const done = () => { if (tok !== guide.tok) return; guide.playing = false; renderGuideBar(); showXRGuide(); if (auto()) guide.timer = setTimeout(autoNext, 1800); };
   if (s.audio) {
     audioEl.src = s.audio; audioEl.onended = done; guide.playing = true;
     audioEl.play().catch(() => { guide.playing = false; renderGuideBar(); showXRGuide(); });
@@ -2129,13 +2191,13 @@ function narrate(s, preview = false) {
     const ttsDone = () => {
       if (tok !== guide.tok) return;
       const el = performance.now() - t0;
-      if (el < words * 200) { guide.playing = false; renderGuideBar(); if (auto()) guide.timer = setTimeout(() => { if (tok === guide.tok) nextStep(); }, Math.max(1500, readMs - el)); return; }
+      if (el < words * 200) { guide.playing = false; renderGuideBar(); if (auto()) guide.timer = setTimeout(() => { if (tok === guide.tok) autoNext(); }, Math.max(1500, readMs - el)); return; }
       done();
     };
     u.onend = ttsDone; u.onerror = ttsDone;
     speechSynthesis.speak(u); guide.playing = true;
   } else if (auto()) {
-    guide.timer = setTimeout(() => { if (tok === guide.tok) nextStep(); }, Math.max(6000, (s.text || "").split(/\s+/).length * 420));
+    guide.timer = setTimeout(() => { if (tok === guide.tok) autoNext(); }, Math.max(6000, (s.text || "").split(/\s+/).length * 420));
   }
   renderGuideBar();
   if (renderer.xr.isPresenting && guide.on) showXRGuide();
@@ -2310,6 +2372,16 @@ function updateHandPointer() {
     const hw = HAND_W / 2, hh = HAND_W * HH / HW / 2, inside = Math.abs(lp.x) < hw && Math.abs(lp.y) < hh;
     if (inside && lp.z < 0.015 && lp.z > -0.03) { if (!c.userData.poked) { c.userData.poked = true; xrHandPress({ x: lp.x / (2 * hw) + 0.5, y: lp.y / (2 * hh) + 0.5 }); } }
     else if (!inside || lp.z > 0.04) c.userData.poked = false;
+  }
+  if (xrCard && xrCard.userData.hover) {
+    let cu = null;
+    for (const c of controllers) {
+      if (c.userData.handHit || !c.visible) continue;
+      hMat.extractRotation(c.matrixWorld); hRay.ray.origin.setFromMatrixPosition(c.matrixWorld); hRay.ray.direction.set(0, 0, -1).applyMatrix4(hMat);
+      const ch = hRay.intersectObject(xrCard, false)[0];
+      if (ch) { cu = ch.uv; handCursor.position.copy(ch.point); handCursor.visible = true; const line = c.children[0]; if (line) line.scale.z = Math.max(0.01, ch.distance / 8); }
+    }
+    xrCard.userData.hover(cu);
   }
   const b = hover && xrHandBtns.find(b => hover.x >= b.x && hover.x <= b.x + b.w && hover.y >= b.y && hover.y <= b.y + b.h);
   const key = b ? b.x + "," + b.y : "";
