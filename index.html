@@ -244,6 +244,8 @@ input[type=file]{display:none}
 .qinput{font-family:var(--f-mono);font-size:30px;letter-spacing:.12em;text-transform:uppercase;width:11ch;padding:8px 12px;border:2px solid var(--line);border-radius:var(--r);background:var(--bg);color:var(--fg)}
 .safety{border-left:3px solid var(--accent);padding-left:10px;max-width:70ch}
 .safelist{margin:0;padding-left:20px;line-height:1.5}
+.ttsbox{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:var(--r);padding:10px;margin-top:4px}
+.ttsbox select{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:4px 6px}
 .qinput:focus{border-color:var(--accent);outline:none}
 .qhome .btn.primary{font-size:18px;padding:10px 20px}
 .vrbig{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);z-index:4;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 24px)}
@@ -360,6 +362,8 @@ input[type=file]{display:none}
         <div class="hs-list" id="stepList"></div>
         <div class="col" data-edit>
           <button class="btn small" id="addStep">+ Huidig beeld als stap</button>
+          <div class="ttsbox" id="ttsBox"><b>Uitleg laten inspreken</b><p class="hint" id="ttsState"></p>
+            <div class="row"><select id="ttsVoiceSel" aria-label="Stem"><option value="nl_BE-nathalie-medium">Nathalie (Vlaams)</option><option value="nl_BE-rdh-medium">Rdh (Vlaams)</option></select><button class="btn small primary" id="ttsMake">🔊 Maak audio</button></div></div>
           <label class="chk"><input type="checkbox" id="optTts"> Tekst voorlezen als er geen opname is</label>
           <label class="chk"><input type="checkbox" id="optAuto"> Automatisch naar de volgende stap</label>
           <label class="chk"><input type="checkbox" id="optStart"> Rondleiding aanbieden bij het openen</label>
@@ -420,7 +424,7 @@ input[type=file]{display:none}
         <label class="f">Wijs naar icoontje<select id="stHs"></select></label>
         <label class="chk"><input type="checkbox" id="stOpen"> Open dat icoontje automatisch</label>
         <p class="hint" id="stAudioState"></p>
-        <div class="row"><button class="btn small" id="stRec">● Opnemen</button><button class="btn small" id="stAudioBtn">Audiobestand kiezen</button><button class="btn small" id="stListen">▶ Beluister</button><span id="stAudioDelWrap"></span><input type="file" id="stAudioFile" accept="audio/*"></div>
+        <div class="row"><button class="btn small" id="stRec">● Opnemen</button><button class="btn small" id="stAudioBtn">Audiobestand kiezen</button><button class="btn small" id="stTts">🔊 Inspreken met stem</button><button class="btn small" id="stListen">▶ Beluister</button><span id="stAudioDelWrap"></span><input type="file" id="stAudioFile" accept="audio/*"></div>
         <div class="row"><button class="btn small" id="stRecapture">Huidig beeld gebruiken</button><button class="btn small" id="stUp" aria-label="Stap omhoog">↑</button><button class="btn small" id="stDown" aria-label="Stap omlaag">↓</button><button class="btn small" id="stPreview">Bekijk deze stap</button><span id="stDelWrap"></span></div>
       </section>
       <div class="foot"><span id="projSize"></span><span id="credits" hidden>Demobeelden: Poly Haven (CC0), via de three.js-voorbeelden. Demomodel: IFC-testbestand van web-ifc (That Open Company).</span></div>
@@ -531,7 +535,8 @@ input[type=file]{display:none}
 <script type="importmap" data-app>{"imports":{
   "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
   "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-  "three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/src/index.js"}}</script>
+  "three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/src/index.js",
+  "onnxruntime-web":"https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/esm/ort.min.js"}}</script>
 <script type="module" data-app>
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -1777,13 +1782,13 @@ const controllers = [0, 1].map(i => {
   const c = renderer.xr.getController(i);
   const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -8)]), new THREE.LineBasicMaterial({ color: 0xf07a2a }));
   c.add(line); rig.add(c);
+  c.addEventListener("connected", e => { c.userData.hand = e.data.handedness; });
   c.addEventListener("squeezestart", () => toggleXRMenu());
   c.addEventListener("select", () => {
     ray.camera = renderer.xr.getCamera();
     const m = new THREE.Matrix4().extractRotation(c.matrixWorld);
     ray.ray.origin.setFromMatrixPosition(c.matrixWorld); ray.ray.direction.set(0, 0, -1).applyMatrix4(m); ray.far = Infinity;
-    if (xrMenu) { const mh = ray.intersectObject(xrMenu, false)[0]; if (mh) { xrMenuPress(mh.uv); return; } }
-    if (xrGuide) { const gh = ray.intersectObject(xrGuide, false)[0]; if (gh) { xrGuidePress(gh.uv); return; } }
+    if (xrHand && xrHand.visible && !(xrHand.userData.onHand && c.userData.hand === "left")) { const hh = ray.intersectObject(xrHand, false)[0]; if (hh) { xrHandPress(hh.uv); return; } }
     if (xrVPanel) { const vh = ray.intersectObject(xrVPanel, false)[0]; if (vh) { xrVideoPress(vh.uv); return; } }
     if (xrCard) { closeCard(); hideBim(); return; }
     const hit = ray.intersectObjects(xrGroup.children)[0]; if (hit) { activate(hit.object.userData.h); return; }
@@ -1834,10 +1839,9 @@ async function enterVR() {
     if (M && view !== "walk") startWalk();
     rig.rotation.y = -deg(yaw); camera.position.set(0, 0, 0); camera.rotation.set(0, 0, 0);
     buildXRMarkers();
-    if (guide.on) setTimeout(() => { faceInXR(route()[guide.i]); showXRGuide(); }, 300);
-    else setTimeout(() => showXRMenu(), 400);
+    setTimeout(() => { if (guide.on) faceInXR(route()[guide.i]); showXRMenu(); }, 300);
     $("#vrBig").hidden = true;
-    s.addEventListener("end", () => { hideXRCard(); hideXRGuide(); hideXRMenu(); if (questMode && screen === "app") setTimeout(showStartVR, 200); rig.rotation.set(0, 0, 0); if (view === "walk") camera.position.set(0, EYE, 0); resize(); });
+    s.addEventListener("end", () => { hideXRCard(); disposeHand(); if (questMode && screen === "app") setTimeout(showStartVR, 200); rig.rotation.set(0, 0, 0); if (view === "walk") camera.position.set(0, EYE, 0); resize(); });
   } catch (e) { showHelp(e.message); }
 }
 function showHelp(msg) {
@@ -2134,7 +2138,7 @@ function narrate(s, preview = false) {
     guide.timer = setTimeout(() => { if (tok === guide.tok) nextStep(); }, Math.max(6000, (s.text || "").split(/\s+/).length * 420));
   }
   renderGuideBar();
-  if (renderer.xr.isPresenting && guide.on && !xrMenu) showXRGuide();
+  if (renderer.xr.isPresenting && guide.on) showXRGuide();
 }
 function renderGuideBar() {
   const r = route(), on = guide.on, s = r[guide.i];
@@ -2191,93 +2195,110 @@ function faceInXR(s) {
   const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), "YXZ");
   rig.rotation.y = -Math.atan2(d.x, -d.z) - (e.y - rig.rotation.y);
 }
-let xrGuide = null;
-function hideXRGuide() { if (xrGuide) { world.remove(xrGuide); xrGuide.material.map.dispose(); xrGuide = null; } }
-function showXRGuide(front) {
-  const prev = xrGuide && xrGuide.userData.step === guide.i ? { p: xrGuide.position.clone(), q: xrGuide.quaternion.clone() } : null;
-  hideXRGuide();
-  if (!guide.on || !renderer.xr.isPresenting) return;
-  hideXRMenu();
-  const r = route(), s = r[guide.i]; if (!s) return;
-  const W = 1024, H = 510;
-  const c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d");
-  g.fillStyle = "rgba(12,16,19,.94)"; g.fillRect(0, 0, W, H);
-  g.fillStyle = "#f07a2a"; g.fillRect(0, 0, W * (guide.i + 1) / r.length, 8);
-  g.fillStyle = "#fff"; g.font = "600 42px sans-serif"; g.fillText(fitText(g, `${guide.i + 1}/${r.length}  ${s.title || ""}`, 944), 40, 70);
-  g.font = "31px sans-serif"; let y = 122, lines = 0, line = "";
-  for (const w of (s.text || "").split(" ")) { if (g.measureText(line + w).width > 944) { g.fillText(line, 40, y); y += 40; line = ""; if (++lines >= 5) break; } line += w + " "; }
-  if (lines < 5) g.fillText(line, 40, y);
-  const canPlay = !!(s.audio || (tour.tts !== false && hasTTS && s.text));
-  g.fillStyle = "rgba(255,255,255,.14)"; g.fillRect(0, 340, 330, 76); g.fillRect(347, 340, 330, 76); g.fillRect(694, 340, 330, 76);
-  g.fillStyle = "rgba(255,255,255,.08)"; g.fillRect(0, 430, 505, 80); g.fillRect(519, 430, 505, 80);
-  g.font = "600 34px sans-serif"; g.textAlign = "center";
-  g.fillStyle = guide.i === 0 ? "rgba(255,255,255,.35)" : "#fff"; g.fillText("◀ Vorige", 165, 390);
-  g.fillStyle = canPlay ? "#fff" : "rgba(255,255,255,.35)"; g.fillText(guide.playing ? "❚❚ Pauze" : "▶ Beluister", 512, 390);
-  g.fillStyle = "#f07a2a"; g.fillText(guide.i === r.length - 1 ? "Afronden ✓" : "Volgende ▶", 859, 390);
-  g.font = "600 30px sans-serif"; g.fillStyle = "#fff"; g.fillText("■ Stop de rondleiding", 252, 482);
-  g.fillStyle = "#ff9b8a"; g.fillText("✕ VR verlaten", 771, 482);
-  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  xrGuide = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4 * H / W), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false }));
-  xrGuide.renderOrder = 4; xrGuide.userData.H = H; xrGuide.userData.step = guide.i;
-  if (prev && !front) { xrGuide.position.copy(prev.p); xrGuide.quaternion.copy(prev.q); world.add(xrGuide); return; }
-  const cam = renderer.xr.getCamera();
-  if (front) { placeInFront(xrGuide, 1.4); xrGuide.position.y -= 0.35; const hp = new THREE.Vector3().setFromMatrixPosition(cam.matrixWorld); xrGuide.lookAt(hp.x, hp.y - 0.1, hp.z); xrGuide.renderOrder = 4; return; }
-  const head = s.view.mode === "walk" ? new THREE.Vector3().fromArray(s.view.pos).add(new THREE.Vector3(0, EYE, 0)) : new THREE.Vector3().setFromMatrixPosition(cam.matrixWorld);
-  const d = focusPoint(s).sub(head); d.y = 0; d.normalize();
-  xrGuide.position.copy(head).addScaledVector(d, 1.4); xrGuide.position.y = head.y - 0.5;
-  xrGuide.lookAt(head.x, head.y - 0.2, head.z);
-  world.add(xrGuide);
-}
-function xrGuidePress(uv) {
-  const y = (1 - uv.y) * xrGuide.userData.H;
-  if (y >= 430) { if (uv.x < 0.5) { stopGuide(); showXRMenu("Rondleiding gestopt. Kijk zelf verder rond."); } else exitVR(); return; }
-  if (y < 340) return;
-  if (uv.x < 0.33) gotoStep(guide.i - 1); else if (uv.x > 0.67) nextStep(); else $("#gPlay").onclick();
-}
-
 function fitText(g, t, w) { if (g.measureText(t).width <= w) return t; while (t.length > 1 && g.measureText(t + "…").width > w) t = t.slice(0, -1); return t.trimEnd() + "…"; }
-/* VR menu: open with B/Y (or A/X, or the side grip); start/stop the tour, leave VR */
-let xrMenu = null, xrMenuBtns = [], xrBtnLatch = false;
-function hideXRMenu() { if (xrMenu) { world.remove(xrMenu); xrMenu.material.map.dispose(); xrMenu = null; } }
-function exitVR() { hideXRMenu(); hideXRGuide(); try { renderer.xr.getSession()?.end(); } catch (e) {} }
-function xrMenuItems() {
-  const items = [], r = route();
-  if (r.length && !guide.on) items.push({ label: `▶ Start de rondleiding (${r.length} ${r.length === 1 ? "stap" : "stappen"})`, primary: true, fn: () => { hideXRMenu(); startGuide(0); } });
-  if (guide.on) {
-    items.push({ label: `▶ Verder met de rondleiding (stap ${guide.i + 1})`, primary: true, fn: () => showXRGuide(true) });
-    items.push({ label: "■ Stop de rondleiding", fn: () => { stopGuide(); showXRMenu("Rondleiding gestopt. Kijk zelf verder rond."); } });
+/* VR panel on the left hand (like a tablet): tour text with pages, play controls, start/stop, leave VR.
+   Point with the right controller and pull the trigger. B/Y (or the grip) hides/shows it. */
+let xrHand = null, xrHandCv = null, xrHandTex = null, xrHandBtns = [], xrHandMsg = "", xrHandPage = 0, xrHandStep = -1, xrBtnLatch = false;
+const HW = 1024, HH = 1120, HAND_W = 0.26;
+const grips = [0, 1].map(i => {
+  const g = renderer.xr.getControllerGrip(i); rig.add(g);
+  g.addEventListener("connected", e => { g.userData.hand = e.data.handedness; attachHand(); });
+  g.addEventListener("disconnected", () => { g.userData.hand = null; attachHand(); });
+  return g;
+});
+function attachHand() {
+  if (!xrHand) return;
+  if (xrHand.parent) xrHand.parent.remove(xrHand);
+  const g = grips.find(x => x.userData.hand === "left");
+  if (g) { g.add(xrHand); xrHand.scale.setScalar(1); xrHand.position.set(0, 0.075, -0.03); xrHand.rotation.set(-Math.PI / 3.2, 0, 0); xrHand.userData.onHand = true; }
+  else { xrHand.scale.setScalar(3); placeInFront(xrHand, 1.2); xrHand.position.y -= 0.25; xrHand.userData.onHand = false; }
+  xrHand.renderOrder = 6;
+}
+function ensureHand() {
+  if (!renderer.xr.isPresenting) return false;
+  if (!xrHand) {
+    xrHandCv = document.createElement("canvas"); xrHandCv.width = HW; xrHandCv.height = HH;
+    xrHandTex = new THREE.CanvasTexture(xrHandCv); xrHandTex.colorSpace = THREE.SRGBColorSpace;
+    xrHand = new THREE.Mesh(new THREE.PlaneGeometry(HAND_W, HAND_W * HH / HW), new THREE.MeshBasicMaterial({ map: xrHandTex, transparent: true, depthTest: false }));
+    attachHand();
   }
-  items.push({ label: "Zelf rondkijken (menu sluiten)", fn: hideXRMenu });
-  items.push({ label: "✕ VR verlaten", danger: true, fn: exitVR });
-  return items;
+  return true;
 }
-function showXRMenu(msg) {
-  hideXRMenu(); if (!renderer.xr.isPresenting) return;
-  hideXRGuide();
-  const items = xrMenuItems(), W = 1024, BH = 88, GAP = 14;
-  const c = document.createElement("canvas"); c.width = W;
-  const mg = c.getContext("2d"); mg.font = "30px sans-serif";
-  const msgLines = []; if (msg) { let line = ""; for (const w of msg.split(" ")) { if (mg.measureText(line + w).width > 930) { msgLines.push(line); line = ""; } line += w + " "; } msgLines.push(line); }
-  const top = 120 + msgLines.length * 40 + (msg ? 16 : 0), H = top + items.length * (BH + GAP) + 64;
-  c.height = H; const g = c.getContext("2d");
-  g.fillStyle = "rgba(12,16,19,.95)"; g.fillRect(0, 0, W, H);
-  g.fillStyle = "#f07a2a"; g.fillRect(0, 0, W, 8);
-  g.fillStyle = "#fff"; g.font = "600 44px sans-serif"; g.fillText(fitText(g, tour?.title || "Werftour", 944), 40, 74);
-  g.font = "30px sans-serif"; g.fillStyle = "rgba(255,255,255,.8)"; msgLines.forEach((l, i) => g.fillText(l, 40, 122 + i * 40));
-  xrMenuBtns = items.map((it, i) => {
-    const y0 = top + i * (BH + GAP);
-    g.fillStyle = it.primary ? "#e2600c" : it.danger ? "rgba(255,120,100,.18)" : "rgba(255,255,255,.12)"; g.fillRect(40, y0, W - 80, BH);
-    g.fillStyle = it.danger ? "#ffb4a6" : "#fff"; g.font = "600 36px sans-serif"; g.fillText(it.label, 72, y0 + 56);
-    return { ...it, y0, y1: y0 + BH };
-  });
-  g.fillStyle = "rgba(255,255,255,.55)"; g.font = "26px sans-serif"; g.fillText("Richt en druk op de trigger. Menu terug openen: knop B of Y (of de zijknop).", 40, H - 24);
-  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  xrMenu = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1 * H / W), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false }));
-  xrMenu.userData.H = H;
-  placeInFront(xrMenu, 1.4); xrMenu.renderOrder = 6;
+function disposeHand() { if (xrHand) { xrHand.parent?.remove(xrHand); xrHandTex.dispose(); xrHand = null; } xrHandMsg = ""; xrHandStep = -1; }
+function wrapLines(g, text, w) {
+  const out = [];
+  for (const para of String(text || "").split(/\n/)) {
+    let line = "";
+    for (let word of para.split(/\s+/).filter(Boolean)) {
+      while (g.measureText(word).width > w) { let k = word.length; while (k > 1 && g.measureText(word.slice(0, k)).width > w) k--; if (line) { out.push(line); line = ""; } out.push(word.slice(0, k)); word = word.slice(k); }
+      const t = line ? line + " " + word : word;
+      if (g.measureText(t).width > w) { out.push(line); line = word; } else line = t;
+    }
+    out.push(line);
+  }
+  while (out.length && !out[out.length - 1]) out.pop();
+  return out;
 }
-function xrMenuPress(uv) { const y = (1 - uv.y) * xrMenu.userData.H; const b = xrMenuBtns.find(b => y >= b.y0 && y <= b.y1 && uv.x > 40 / 1024 && uv.x < 984 / 1024); if (b) b.fn(); }
-function toggleXRMenu() { if (!renderer.xr.isPresenting) return; if (xrMenu) hideXRMenu(); else showXRMenu(); }
+function drawHand() {
+  if (!xrHand) return;
+  const g = xrHandCv.getContext("2d"), btns = [];
+  g.clearRect(0, 0, HW, HH); g.textAlign = "left"; g.textBaseline = "alphabetic";
+  g.fillStyle = "rgba(12,16,19,.96)"; g.beginPath(); g.roundRect(0, 0, HW, HH, 36); g.fill();
+  const B = (x, y, w, h, label, fn, style, disabled) => {
+    g.fillStyle = disabled ? "rgba(255,255,255,.05)" : style === "primary" ? "#e2600c" : style === "danger" ? "rgba(255,120,100,.2)" : "rgba(255,255,255,.13)";
+    g.beginPath(); g.roundRect(x, y, w, h, 16); g.fill();
+    g.fillStyle = disabled ? "rgba(255,255,255,.3)" : style === "danger" ? "#ffb4a6" : "#fff";
+    g.font = `600 ${h > 80 ? 38 : 32}px sans-serif`; g.textAlign = "center"; g.fillText(fitText(g, label, w - 24), x + w / 2, y + h / 2 + 13); g.textAlign = "left";
+    if (!disabled) btns.push({ x, y, w, h, fn });
+  };
+  g.fillStyle = "#fff"; g.font = "600 34px sans-serif"; g.fillText(fitText(g, tour?.title || "Werftour", 610), 40, 74);
+  B(684, 26, 300, 70, "✕ VR verlaten", exitVR, "danger");
+  const r = route(), st = guide.on ? r[guide.i] : null;
+  if (st) {
+    if (xrHandStep !== guide.i) { xrHandStep = guide.i; xrHandPage = 0; }
+    g.fillStyle = "rgba(255,255,255,.15)"; g.fillRect(40, 116, 944, 8);
+    g.fillStyle = "#f07a2a"; g.fillRect(40, 116, 944 * (guide.i + 1) / r.length, 8);
+    g.font = "600 28px sans-serif"; g.fillText(`STAP ${guide.i + 1} VAN ${r.length}`, 40, 170);
+    g.fillStyle = "#fff"; g.font = "600 44px sans-serif";
+    const tl = wrapLines(g, st.title || "", 944).slice(0, 2); tl.forEach((l, i) => g.fillText(l, 40, 226 + i * 54));
+    const y0 = 226 + tl.length * 54 + 14, LH = 46, yMax = 820;
+    g.font = "34px sans-serif"; const lines = wrapLines(g, st.text || "", 944);
+    const per = Math.max(1, Math.floor((yMax - y0) / LH)), pages = Math.max(1, Math.ceil(lines.length / per));
+    xrHandPage = clamp(xrHandPage, 0, pages - 1);
+    g.fillStyle = "rgba(255,255,255,.92)";
+    lines.slice(xrHandPage * per, xrHandPage * per + per).forEach((l, i) => g.fillText(l, 40, y0 + 30 + i * LH));
+    if (!lines.length) { g.fillStyle = "rgba(255,255,255,.5)"; g.fillText("(geen uitleg bij deze stap)", 40, y0 + 30); }
+    if (pages > 1) {
+      B(40, 832, 220, 60, "▲ terug", () => { xrHandPage--; drawHand(); }, "", xrHandPage === 0);
+      g.fillStyle = "rgba(255,255,255,.7)"; g.font = "28px sans-serif"; g.textAlign = "center"; g.fillText(`tekst ${xrHandPage + 1} / ${pages}`, 512, 872); g.textAlign = "left";
+      B(764, 832, 220, 60, "▼ verder", () => { xrHandPage++; drawHand(); }, "", xrHandPage === pages - 1);
+    }
+    const canPlay = !!(st.audio || (tour.tts !== false && hasTTS && st.text));
+    B(40, 910, 296, 92, "◀ Vorige", () => gotoStep(guide.i - 1), "", guide.i === 0);
+    B(364, 910, 296, 92, guide.playing ? "❚❚ Pauze" : "▶ Beluister", () => $("#gPlay").onclick(), "", !canPlay);
+    B(688, 910, 296, 92, guide.i === r.length - 1 ? "Afronden ✓" : "Volgende ▶", () => nextStep(), "primary");
+    B(40, 1022, 944, 70, "■ Stop de rondleiding", () => { stopGuide(); xrHandMsg = "Rondleiding gestopt. Kijk zelf verder rond: richt op een icoontje en druk op de trigger."; drawHand(); });
+  } else {
+    xrHandStep = -1;
+    g.font = "34px sans-serif"; g.fillStyle = "rgba(255,255,255,.92)";
+    const msg = xrHandMsg || (r.length ? "Volg de begeleide rondleiding, of kijk zelf rond: richt met je rechterhand op een icoontje en druk op de trigger." : "Kijk zelf rond: richt met je rechterhand op een icoontje en druk op de trigger.");
+    wrapLines(g, msg, 944).slice(0, 8).forEach((l, i) => g.fillText(l, 40, 190 + i * 46));
+    if (r.length) B(40, 600, 944, 120, `▶ Start de rondleiding (${r.length} ${r.length === 1 ? "stap" : "stappen"})`, () => { xrHandMsg = ""; startGuide(0); }, "primary");
+  }
+  g.fillStyle = "rgba(255,255,255,.45)"; g.font = "24px sans-serif";
+  if (!st) g.fillText("Knop B of Y: dit scherm verbergen of tonen.", 40, HH - 36);
+  xrHandBtns = btns; xrHandTex.needsUpdate = true;
+}
+function xrHandPress(uv) {
+  const x = uv.x * HW, y = (1 - uv.y) * HH;
+  const b = xrHandBtns.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h); if (b) b.fn();
+}
+/* the old names stay, so the rest of the app keeps working */
+function showXRGuide() { if (ensureHand()) drawHand(); }
+function hideXRGuide() { if (xrHand) drawHand(); }
+function showXRMenu(msg) { if (!ensureHand()) return; xrHandMsg = msg || ""; xrHand.visible = true; drawHand(); }
+function exitVR() { try { renderer.xr.getSession()?.end(); } catch (e) {} }
+function toggleXRMenu() { if (!ensureHand()) return; xrHand.visible = !xrHand.visible; if (xrHand.visible) drawHand(); }
 function pollXRButtons() {
   const s = renderer.xr.getSession(); if (!s) return; let p = false;
   for (const src of s.inputSources) { const b = src.gamepad?.buttons; if (b && (b[4]?.pressed || b[5]?.pressed)) p = true; }
@@ -2302,11 +2323,12 @@ function renderGuideSide() {
     b.innerHTML = `<span class="num"></span><span class="t"></span><span class="coord"></span>`;
     b.querySelector(".num").textContent = i + 1;
     b.querySelector(".t").textContent = s.title || "(zonder titel)";
-    b.querySelector(".coord").textContent = s.audio ? "opname" : s.text ? "tekst" : "";
+    b.querySelector(".coord").textContent = s.audio ? (s.audioAuto ? "stem" : "opname") : s.text ? "tekst" : "";
     b.title = stepLabel(s);
     b.onclick = () => { if (edit) { selStep = s; render(); setTimeout(() => reveal($("#stepEditor")), 30); } else startGuide(i); };
     list.appendChild(b);
   });
+  renderTtsBox();
   $("#optTts").checked = tour.tts !== false; $("#optAuto").checked = tour.guideAuto !== false; $("#optStart").checked = !!tour.guideAutostart;
   $("#addStep").disabled = !cur;
   const ed = $("#stepEditor");
@@ -2321,7 +2343,7 @@ function renderGuideSide() {
   for (const h of scene(s.scene)?.hotspots || []) sel.appendChild(new Option(h.title || TYPES[h.type]?.label, h.id));
   sel.value = s.hotspot || "";
   $("#stOpen").checked = !!s.open; $("#stOpen").disabled = !s.hotspot;
-  $("#stAudioState").textContent = s.audio ? `Ingesproken opname (${fmtMB(s.audio.length * 0.75)}).` : (tour.tts !== false ? "Geen opname: de tekst wordt voorgelezen door de browser." : "Geen opname: de tekst verschijnt enkel als ondertitel.");
+  $("#stAudioState").textContent = s.audio && s.audioAuto ? `Ingesproken door de voorleesstem (${fmtMB(s.audio.length * 0.75)}).` : s.audio ? `Ingesproken opname (${fmtMB(s.audio.length * 0.75)}).` : (tour.tts !== false ? "Geen opname: de tekst wordt voorgelezen door de browser." : "Geen opname: de tekst verschijnt enkel als ondertitel.");
   $("#stRec").textContent = rec && rec.owner === s ? "■ Stop opname" : "● Opnemen"; $("#stRec").classList.toggle("rec", !!(rec && rec.owner === s));
   $("#stAudioDelWrap").innerHTML = s.audio ? '<button class="btn small danger" id="stAudioDel">Opname weg</button>' : "";
   if (s.audio) $("#stAudioDel").onclick = () => { delete s.audio; save(); render(); };
@@ -2339,7 +2361,7 @@ $("#addStep").onclick = () => {
 };
 const bindSt = (id, fn, ev = "input") => $(id).addEventListener(ev, e => { if (!selStep) return; fn(e.target); save(); render(); });
 bindSt("#stTitle", t => selStep.title = t.value);
-bindSt("#stText", t => selStep.text = t.value);
+bindSt("#stText", t => { selStep.text = t.value; if (selStep.audioAuto) { delete selStep.audio; delete selStep.audioAuto; } });
 bindSt("#stHs", t => { if (t.value) selStep.hotspot = t.value; else { delete selStep.hotspot; delete selStep.open; } }, "change");
 bindSt("#stOpen", t => selStep.open = t.checked, "change");
 $("#optTts").onchange = e => { tour.tts = e.target.checked; save(); render(); };
@@ -2355,6 +2377,64 @@ $("#stDown").onclick = () => { const r = route(), i = r.indexOf(selStep); if (i 
 $("#stPreview").onclick = () => { if (selStep) startGuide(route().indexOf(selStep)); };
 $("#stListen").onclick = () => { if (!selStep) return; if (!selStep.audio && !(hasTTS && selStep.text)) { toast("Deze stap heeft nog geen opname of tekst."); return; } narrate(selStep, true); };
 $("#stAudioBtn").onclick = () => $("#stAudioFile").click();
+$("#stTts").onclick = () => { if (!selStep) return; if (!selStep.text?.trim()) { toast("Typ eerst de gesproken tekst van deze stap."); return; } if (selStep.audio && !selStep.audioAuto) { toast("Deze stap heeft een eigen opname. Haal die eerst weg."); return; } makeTourAudio(selStep); };
+$("#ttsMake").onclick = () => makeTourAudio();
+$("#ttsVoiceSel").onchange = e => { tour.ttsVoice = e.target.value; save(); render(); };
+
+/* ---------- Flemish voice: Piper (VITS) runs in the browser, result stored as mp3 in the step ---------- */
+const ttsVoiceId = () => tour.ttsVoice || "nl_BE-nathalie-medium";
+const ttsKey = st => ttsVoiceId() + "|" + (st.text || "");
+const needsTts = st => !!(st.text && st.text.trim()) && (!st.audio || (!!st.audioAuto && st.audioAuto !== ttsKey(st)));
+function renderTtsBox() {
+  const r = route(), box = $("#ttsBox"); box.hidden = !r.length; if (!r.length) return;
+  $("#ttsVoiceSel").value = ttsVoiceId();
+  const n = r.filter(needsTts).length, withText = r.filter(x => x.text && x.text.trim()).length;
+  $("#ttsState").textContent = n ? `${n} ${n === 1 ? "stap heeft" : "stappen hebben"} nog geen audio. Laat de uitleg inspreken door een Vlaamse computerstem: die audio werkt overal, ook op de Quest (die zelf niet kan voorlezen). De eerste keer wordt de stem gedownload (± 65 MB).`
+    : withText ? "Alle stappen met tekst hebben audio ✓" : "Typ eerst de uitleg bij de stappen.";
+  $("#ttsMake").disabled = !n;
+}
+let vitsMod = null;
+const loadVits = async () => vitsMod || (vitsMod = await import("https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web@1.0.3/dist/vits-web.js"));
+async function wavToMp3DataURL(blob) {
+  try {
+    const buf = await blob.arrayBuffer(), dv = new DataView(buf), rate = dv.getUint32(24, true);
+    const pcm = new Int16Array(buf.slice(44, 44 + ((buf.byteLength - 44) & ~1)));
+    let peak = 1; for (let i = 0; i < pcm.length; i++) { const v = Math.abs(pcm[i]); if (v > peak) peak = v; }
+    const gain = Math.min(4, 29000 / peak); if (gain > 1.05) for (let i = 0; i < pcm.length; i++) pcm[i] = pcm[i] * gain;
+    const lame = await loadScript("https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js", "lamejs");
+    const enc = new lame.Mp3Encoder(1, rate, 48), out = [];
+    for (let i = 0; i < pcm.length; i += 1152) { const b = enc.encodeBuffer(pcm.subarray(i, i + 1152)); if (b.length) out.push(new Uint8Array(b)); }
+    const e = enc.flush(); if (e.length) out.push(new Uint8Array(e));
+    return await readAsDataURL(new Blob(out, { type: "audio/mpeg" }));
+  } catch (e) { console.warn("mp3", e); return await readAsDataURL(blob); }
+}
+async function makeTourAudio(only) {
+  const todo = only ? [only] : route().filter(needsTts);
+  if (!todo.length) { toast("Alle stappen hebben al audio."); return; }
+  stopNarration();
+  showLoading("Uitleg laten inspreken");
+  try {
+    progress(0.02, "De voorleesstem laden…");
+    const v = await loadVits(), voice = ttsVoiceId();
+    for (let i = 0; i < todo.length; i++) {
+      const st = todo[i], label = `Stap ${route().indexOf(st) + 1} van ${route().length}: ‘${st.title || ""}’ inspreken…`;
+      progress(0.05 + 0.9 * i / todo.length, label);
+      const wav = await v.predict({ text: st.text.replace(/\s+/g, " ").trim(), voiceId: voice }, pr => {
+        if (pr.total > 1e6) progress(0.05 + 0.9 * i / todo.length, `De stem downloaden (eenmalig): ${fmtMB(pr.loaded)} van ${fmtMB(pr.total)}`);
+      });
+      st.audio = await wavToMp3DataURL(wav); st.audioAuto = ttsKey(st);
+      await saveNow();
+    }
+    closeCard(); render();
+    toast(todo.length === 1 ? "Audio gemaakt voor deze stap" : `Audio gemaakt voor ${todo.length} stappen`);
+  } catch (err) {
+    console.error(err); await saveNow(); render();
+    const b = $("#cardBody");
+    b.innerHTML = `<h3>Inspreken lukte niet</h3><p></p><p class="hint">De stem wordt de eerste keer van internet gehaald (Hugging Face). Controleer je internetverbinding en probeer opnieuw. Stappen die al klaar waren, zijn bewaard.</p><div class="row"><button class="btn">Sluiten</button></div>`;
+    b.querySelector("p").textContent = "Melding: " + (err?.message || err);
+    b.querySelector("button").onclick = closeCard; $("#card").hidden = false;
+  }
+}
 $("#stAudioFile").onchange = async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f || !selStep) return;
   if (f.size > 12 * 1048576) { toast("Dit audiobestand is groter dan 12 MB. Kort het in of exporteer als mp3."); return; }
@@ -2432,11 +2512,13 @@ async function sendToQuest() {
       <div class="qrwrap"><div class="qr"><img alt="QR-code om deze tour op de Quest te openen"></div>
         <div class="qrtext"><p><b>Scan</b> deze QR-code met de Quest.</p><p>Of open op de Quest <span class="url"></span> en typ de code:</p><div class="qcode"></div></div></div>
       <p class="hint">De tour wordt naar de bril gestuurd en blijft daar bewaard; daarna heb je de laptop niet meer nodig. Laat dit venster open tot elke bril ‘klaar’ toont. Meerdere brillen tegelijk kan.</p>
+      <p class="hint" id="qAudioWarn" hidden></p>
       <div class="qconns" id="qConns"></div>
       <div class="row"><button class="btn primary" id="qStop">Klaar</button></div>`;
     b.querySelector(".qr img").src = qr.createDataURL(6, 2);
     b.querySelector(".url").textContent = location.host + location.pathname + "?quest";
     b.querySelector(".qcode").textContent = fmtCode(code);
+    { const n = route().filter(needsTts).length, w = $("#qAudioWarn"); if (n) { w.hidden = false; w.textContent = `Let op: ${n} ${n === 1 ? "stap" : "stappen"} van de rondleiding ${n === 1 ? "heeft" : "hebben"} nog geen audio. De Quest kan zelf niet voorlezen. Klik eerst bij Rondleiding (in Bewerken) op ‘🔊 Maak audio’ en stuur de tour daarna.`; } }
     $("#qStop").onclick = () => stopQuestSession();
     renderQConns();
     peer.on("connection", conn => handleQuestConn(conn));

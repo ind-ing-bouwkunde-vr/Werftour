@@ -51,12 +51,18 @@ kan je de tour exporteren en openen via de [VR-viewer starter](https://github.co
 
 **In VR:**
 
-- Richt de straal en druk op de trigger om een icoontje of knop te kiezen.
-- Bij de start verschijnt het **VR-menu**: *Start de rondleiding*, *Zelf rondkijken* of *VR verlaten*.
-  Je opent het menu altijd opnieuw met **knop B of Y** (of A/X, of de zijknop).
-- Tijdens de rondleiding zie je een paneel met **Vorige · Beluister/Pauze · Volgende**, en daaronder
-  **Stop de rondleiding** en **VR verlaten**. De uitleg wordt voorgelezen of je hoort de ingesproken audio.
+- Op je **linkerhand** zit een scherm, zoals een tablet. Richt met je rechterhand en druk op de trigger.
+- Je kiest er **Start de rondleiding**, of je kijkt zelf rond door op icoontjes te richten.
+- Tijdens de rondleiding staat er de volledige uitleg van de stap. Is de tekst lang, blader dan met **▼ verder**.
+  Daaronder vind je **◀ Vorige · ▶ Beluister / ❚❚ Pauze · Volgende ▶** en **■ Stop de rondleiding**.
+- **✕ VR verlaten** staat altijd rechtsboven op het scherm. Met knop **B of Y** verberg of toon je het scherm.
 - In een BIM-model stap je met de linker stick en draai je met de rechter stick (in stappen van 30°, tegen misselijkheid).
+
+**Gesproken uitleg op de Quest:** de Quest kan zelf geen tekst voorlezen. Laat de uitleg daarom op de laptop
+inspreken: open *Bewerken › Rondleiding* en klik op **🔊 Maak audio**. Een Vlaamse computerstem
+([Piper](https://github.com/rhasspy/piper), draait volledig in je browser) spreekt elke stap in. De audio zit daarna
+in de tour en gaat mee naar de Quest. De eerste keer wordt de stem gedownload (± 65 MB), daarna gaat het snel.
+Je kan ook per stap zelf iets inspreken met **● Opnemen**.
 
 ## Veiligheid en gezondheid
 
@@ -82,6 +88,7 @@ veiligheidswaarschuwing telkens je VR start.
 - 3D-weergave: [three.js](https://threejs.org) (MIT), [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) (MIT)
 - IFC-lezer: [web-ifc](https://github.com/ThatOpen/engine_web-ifc) (MPL-2.0)
 - Zip: [JSZip](https://stuk.github.io/jszip/) (MIT)
+- Voorleesstem: [Piper](https://github.com/rhasspy/piper) via [vits-web](https://github.com/diffusionstudio/vits-web) (MIT), [ONNX Runtime Web](https://onnxruntime.ai) (MIT), stemmen nl_BE (Hugging Face), mp3 met [lamejs](https://github.com/zhuker/lamejs) (LGPL)
 - Versturen naar de Quest: [PeerJS](https://peerjs.com) (MIT, WebRTC; de gratis PeerJS-server legt alleen de verbinding, de tour zelf gaat rechtstreeks), [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) (MIT)
 - Demobeelden: [Poly Haven](https://polyhaven.com) (CC0), via de three.js-voorbeelden
 - Demomodel: IFC-testbestand uit de web-ifc-repository (That Open Company)

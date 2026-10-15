@@ -8,6 +8,7 @@ Werftour Studio verzamelt geen persoonsgegevens.
 - **Microfoon.** Als je zelf uitleg inspreekt, vraagt de browser toestemming voor de microfoon. De opname blijft op je toestel en wordt alleen bewaard in je eigen project.
 - **Exporteren.** Een geëxporteerd bestand maak je zelf aan en bewaar je zelf. Wat je ermee doet (delen, online zetten), bepaal je zelf.
 - **Naar de Quest sturen.** Klik je op *Naar Quest*, dan gaat de tour rechtstreeks van je laptop naar de bril via een versleutelde WebRTC-verbinding. Om die verbinding te leggen, gebruikt de app de gratis koppelserver van PeerJS (0.peerjs.com) en STUN-servers van Google. Die zien alleen een tijdelijke code en je IP-adres, niet de inhoud van de tour. Zonder op die knop te klikken, wordt er niets verstuurd.
+- **Voorleesstem.** Klik je op *Maak audio*, dan downloadt de app eenmalig een stemmodel van Hugging Face (huggingface.co). Het inspreken zelf gebeurt volledig in je browser: je teksten worden niet verstuurd.
 - **Externe bronnen.** Bij het openen laadt de app programmabibliotheken (three.js, web-ifc, JSZip, PeerJS, qrcode-generator) van openbare CDN's (jsDelivr, cdnjs) en lettertypes van Google Fonts. Die diensten zien zoals elke website je IP-adres, maar krijgen geen inhoud van je projecten.
 - **Geen cookies, geen tracking, geen advertenties.**
 
