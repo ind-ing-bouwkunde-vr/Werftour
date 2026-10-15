@@ -52,6 +52,19 @@ kan je de tour exporteren en openen via de [VR-viewer starter](https://github.co
 **In VR:** richt de straal en druk op de trigger. In een BIM-model stap je met de linker stick en draai
 je met de rechter stick (in stappen van 30°, tegen misselijkheid).
 
+## Veiligheid en gezondheid
+
+VR kan **bewegingsziekte (motion sickness)** veroorzaken: duizeligheid, misselijkheid, zweten, hoofdpijn of
+desoriëntatie, vooral bij bewegen in een BIM-model of bij 360°-video. Werftour toont daarom een
+veiligheidswaarschuwing telkens je VR start.
+
+- Gebruik VR zittend of in een vrije ruimte zonder obstakels, trappen of mensen binnen armlengte; stel de grens (Guardian) van je bril in.
+- Begin met korte sessies en las regelmatig een pauze in (bv. elke 20 à 30 minuten).
+- Stop meteen en zet de bril af als je je onwel voelt.
+- Niet gebruiken bij gevoeligheid voor epilepsie of evenwichtsstoornissen zonder advies van een arts. Niet geschikt voor kinderen jonger dan 13 jaar.
+- Ter beperking van bewegingsziekte draai je in een BIM-model in stappen van 30° (snap turn).
+- Volg de gezondheids- en veiligheidsvoorschriften van de fabrikant van je VR-bril.
+
 ## Tips voor bestanden
 
 - **360°-foto's:** exporteer in Insta360 Studio als 360°-foto (JPG, 2:1). Grote foto's worden automatisch verkleind tot 6144 px breed.

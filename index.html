@@ -241,7 +241,9 @@ input[type=file]{display:none}
 .qconns{display:flex;flex-direction:column;gap:8px}
 .qrow{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;font-size:13px}
 .qrow .bar{grid-column:1/-1}
-.qinput{font-family:var(--f-mono);font-size:30px;letter-spacing:.12em;text-transform:uppercase;width:9ch;padding:8px 12px;border:2px solid var(--line);border-radius:var(--r);background:var(--bg);color:var(--fg)}
+.qinput{font-family:var(--f-mono);font-size:30px;letter-spacing:.12em;text-transform:uppercase;width:11ch;padding:8px 12px;border:2px solid var(--line);border-radius:var(--r);background:var(--bg);color:var(--fg)}
+.safety{border-left:3px solid var(--accent);padding-left:10px;max-width:70ch}
+.safelist{margin:0;padding-left:20px;line-height:1.5}
 .qinput:focus{border-color:var(--accent);outline:none}
 .qhome .btn.primary{font-size:18px;padding:10px 20px}
 .vrbig{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);z-index:4;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 24px)}
@@ -291,6 +293,7 @@ input[type=file]{display:none}
       <div class="hero">
         <h1>Virtuele werfbezoeken, zelf gemaakt</h1>
         <p>Maak een rondleiding met je eigen 360°-foto's, of loop rond in je eigen BIM-model. Voeg info, vragen, plannen en gesproken uitleg toe, en bekijk het resultaat op pc, gsm of de Meta Quest.</p>
+        <p class="hint safety"><b>Veiligheid in VR:</b> VR kan bewegingsziekte (motion sickness) veroorzaken. Gebruik VR zittend of in een vrije ruimte, zonder obstakels, trappen of mensen in de buurt. Stop meteen bij duizeligheid, misselijkheid, hoofdpijn of vermoeide ogen. Niet geschikt voor kinderen jonger dan 13 jaar. Volg ook de veiligheidsvoorschriften van je VR-bril.</p>
       </div>
       <div class="modes">
         <article class="mode-card">
@@ -339,6 +342,7 @@ input[type=file]{display:none}
         <div class="ph"><h2>Op deze bril</h2></div>
         <div class="plist" id="qList"></div>
         <p class="hint">Deze tours blijven op de bril bewaard en werken ook zonder laptop. Stuur een tour opnieuw om een nieuwere versie te krijgen.</p>
+        <p class="hint safety"><b>Veiligheid in VR:</b> VR kan bewegingsziekte (motion sickness) veroorzaken. Gebruik VR zittend of in een vrije ruimte, zonder obstakels, trappen of mensen in de buurt. Stop meteen bij duizeligheid, misselijkheid, hoofdpijn of vermoeide ogen. Niet geschikt voor kinderen jonger dan 13 jaar. Volg ook de veiligheidsvoorschriften van je VR-bril.</p>
       </section>
     </div>
   </div>
@@ -1801,8 +1805,26 @@ function xrLocomotion(dt) {
   const d = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
   walk(dt, fwd, strafe, rad(Math.atan2(d.x, -d.z)));
 }
+let vrSafetyOK = false;
+function showVRSafety() {
+  const b = $("#cardBody");
+  b.innerHTML = `<h3>Voor je VR start: veiligheid</h3>
+    <p><b>VR kan bewegingsziekte (motion sickness) veroorzaken:</b> duizeligheid, misselijkheid, zweten, hoofdpijn of desoriëntatie, vooral bij bewegen in een BIM-model of bij 360°-video. Begin met korte sessies.</p>
+    <ul class="safelist">
+      <li>Gebruik VR <b>zittend</b> of in een <b>vrije, veilige ruimte</b>: geen obstakels, trappen, huisdieren of mensen binnen armlengte. Stel de grens (Guardian) van je bril in.</li>
+      <li>Wat je in VR ziet, is niet de echte ruimte. <b>Loop niet rond</b> op basis van het beeld; beweeg in een BIM-model met de sticks.</li>
+      <li><b>Stop meteen</b> en zet de bril af bij duizeligheid, misselijkheid, hoofdpijn, vermoeide ogen of een onwel gevoel. Las regelmatig een pauze in (bv. elke 20 à 30 minuten).</li>
+      <li>Niet gebruiken bij gevoeligheid voor epilepsie of evenwichtsstoornissen zonder advies van een arts. Niet geschikt voor kinderen jonger dan 13 jaar.</li>
+      <li>Volg de gezondheids- en veiligheidsvoorschriften van de fabrikant van je VR-bril.</li>
+    </ul>
+    <div class="row"><button class="btn primary" id="vrSafeGo">Ik begrijp het, start VR</button><button class="btn" id="vrSafeNo">Annuleren</button></div>`;
+  $("#vrSafeGo").onclick = () => { vrSafetyOK = true; closeCard(); enterVR(); };
+  $("#vrSafeNo").onclick = () => { closeCard(); if (questMode && screen === "app") showStartVR(); };
+  $("#card").dataset.busy = "1"; $("#card").hidden = false;
+}
 async function enterVR() {
   if (!cur) { toast("Voeg eerst inhoud toe."); return; }
+  if (!vrSafetyOK) { showVRSafety(); return; }
   if (!navigator.xr || !(await navigator.xr.isSessionSupported("immersive-vr").catch(() => false))) { showHelp(); return; }
   try {
     const s = await navigator.xr.requestSession("immersive-vr", { optionalFeatures: ["local-floor"] });
