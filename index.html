@@ -1783,11 +1783,11 @@ const controllers = [0, 1].map(i => {
   const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -8)]), new THREE.LineBasicMaterial({ color: 0xf07a2a }));
   c.add(line); rig.add(c);
   c.addEventListener("connected", e => { c.userData.hand = e.data.handedness; });
-  c.addEventListener("squeezestart", () => toggleXRMenu());
   c.addEventListener("select", () => {
     ray.camera = renderer.xr.getCamera();
     const m = new THREE.Matrix4().extractRotation(c.matrixWorld);
     ray.ray.origin.setFromMatrixPosition(c.matrixWorld); ray.ray.direction.set(0, 0, -1).applyMatrix4(m); ray.far = Infinity;
+    if (c.userData.handHit) { xrHandPress(c.userData.handHit); return; }
     if (xrHand && xrHand.visible && !(xrHand.userData.onHand && c.userData.hand === "left")) { const hh = ray.intersectObject(xrHand, false)[0]; if (hh) { xrHandPress(hh.uv); return; } }
     if (xrVPanel) { const vh = ray.intersectObject(xrVPanel, false)[0]; if (vh) { xrVideoPress(vh.uv); return; } }
     if (xrCard) { closeCard(); hideBim(); return; }
@@ -2198,8 +2198,9 @@ function faceInXR(s) {
 function fitText(g, t, w) { if (g.measureText(t).width <= w) return t; while (t.length > 1 && g.measureText(t + "…").width > w) t = t.slice(0, -1); return t.trimEnd() + "…"; }
 /* VR panel on the left hand (like a tablet): tour text with pages, play controls, start/stop, leave VR.
    Point with the right controller and pull the trigger. B/Y (or the grip) hides/shows it. */
+let xrHandHover = null, xrHandHoverKey = "", xrALatch = false, xrXLatch = false;
 let xrHand = null, xrHandCv = null, xrHandTex = null, xrHandBtns = [], xrHandMsg = "", xrHandPage = 0, xrHandStep = -1, xrBtnLatch = false;
-const HW = 1024, HH = 1120, HAND_W = 0.26;
+const HW = 1024, HH = 1120, HAND_W = 0.3;
 const grips = [0, 1].map(i => {
   const g = renderer.xr.getControllerGrip(i); rig.add(g);
   g.addEventListener("connected", e => { g.userData.hand = e.data.handedness; attachHand(); });
@@ -2210,7 +2211,7 @@ function attachHand() {
   if (!xrHand) return;
   if (xrHand.parent) xrHand.parent.remove(xrHand);
   const g = grips.find(x => x.userData.hand === "left");
-  if (g) { g.add(xrHand); xrHand.scale.setScalar(1); xrHand.position.set(0, 0.075, -0.03); xrHand.rotation.set(-Math.PI / 3.2, 0, 0); xrHand.userData.onHand = true; }
+  if (g) { g.add(xrHand); xrHand.scale.setScalar(1); xrHand.position.set(0, 0.1, -0.03); xrHand.rotation.set(-Math.PI / 3.2, 0, 0); xrHand.userData.onHand = true; }
   else { xrHand.scale.setScalar(3); placeInFront(xrHand, 1.2); xrHand.position.y -= 0.25; xrHand.userData.onHand = false; }
   xrHand.renderOrder = 6;
 }
@@ -2219,7 +2220,7 @@ function ensureHand() {
   if (!xrHand) {
     xrHandCv = document.createElement("canvas"); xrHandCv.width = HW; xrHandCv.height = HH;
     xrHandTex = new THREE.CanvasTexture(xrHandCv); xrHandTex.colorSpace = THREE.SRGBColorSpace;
-    xrHand = new THREE.Mesh(new THREE.PlaneGeometry(HAND_W, HAND_W * HH / HW), new THREE.MeshBasicMaterial({ map: xrHandTex, transparent: true, depthTest: false }));
+    xrHand = new THREE.Mesh(new THREE.PlaneGeometry(HAND_W, HAND_W * HH / HW), new THREE.MeshBasicMaterial({ map: xrHandTex, transparent: true, depthTest: false, side: THREE.DoubleSide }));
     attachHand();
   }
   return true;
@@ -2245,6 +2246,8 @@ function drawHand() {
   g.clearRect(0, 0, HW, HH); g.textAlign = "left"; g.textBaseline = "alphabetic";
   g.fillStyle = "rgba(12,16,19,.96)"; g.beginPath(); g.roundRect(0, 0, HW, HH, 36); g.fill();
   const B = (x, y, w, h, label, fn, style, disabled) => {
+    const hov = !disabled && xrHandHover && xrHandHover.x >= x && xrHandHover.x <= x + w && xrHandHover.y >= y && xrHandHover.y <= y + h;
+    if (hov) { g.fillStyle = "#fff"; g.beginPath(); g.roundRect(x - 6, y - 6, w + 12, h + 12, 20); g.fill(); }
     g.fillStyle = disabled ? "rgba(255,255,255,.05)" : style === "primary" ? "#e2600c" : style === "danger" ? "rgba(255,120,100,.2)" : "rgba(255,255,255,.13)";
     g.beginPath(); g.roundRect(x, y, w, h, 16); g.fill();
     g.fillStyle = disabled ? "rgba(255,255,255,.3)" : style === "danger" ? "#ffb4a6" : "#fff";
@@ -2286,8 +2289,31 @@ function drawHand() {
     if (r.length) B(40, 600, 944, 120, `▶ Start de rondleiding (${r.length} ${r.length === 1 ? "stap" : "stappen"})`, () => { xrHandMsg = ""; startGuide(0); }, "primary");
   }
   g.fillStyle = "rgba(255,255,255,.45)"; g.font = "24px sans-serif";
-  if (!st) g.fillText("Knop B of Y: dit scherm verbergen of tonen.", 40, HH - 36);
+  if (!st) wrapLines(g, "Richt met je rechterhand en druk op de trigger, of tik met je rechtercontroller op het scherm. Knop B of Y: scherm verbergen of tonen.", 944).slice(0, 2).forEach((l, i, arr) => g.fillText(l, 40, HH - 36 - (arr.length - 1 - i) * 32));
   xrHandBtns = btns; xrHandTex.needsUpdate = true;
+}
+/* every frame: point at the hand screen with the other controller (cursor + highlight), or tap it with the controller tip */
+const handCursor = new THREE.Mesh(new THREE.SphereGeometry(0.007, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false }));
+handCursor.renderOrder = 8; handCursor.visible = false; world.add(handCursor);
+const hRay = new THREE.Raycaster(), hMat = new THREE.Matrix4(), hPos = new THREE.Vector3();
+function updateHandPointer() {
+  handCursor.visible = false; let hover = null;
+  for (const c of controllers) {
+    c.userData.handHit = null;
+    const line = c.children[0]; if (line) line.scale.z = 1;
+    if (!xrHand || !xrHand.visible || (xrHand.userData.onHand && c.userData.hand === "left")) { c.userData.poked = false; continue; }
+    xrHand.updateMatrixWorld(true);
+    hMat.extractRotation(c.matrixWorld); hRay.ray.origin.setFromMatrixPosition(c.matrixWorld); hRay.ray.direction.set(0, 0, -1).applyMatrix4(hMat);
+    const h = hRay.intersectObject(xrHand, false)[0];
+    if (h) { c.userData.handHit = h.uv.clone(); handCursor.position.copy(h.point); handCursor.visible = true; if (line) line.scale.z = Math.max(0.01, h.distance / 8); hover = { x: h.uv.x * HW, y: (1 - h.uv.y) * HH }; }
+    const lp = xrHand.worldToLocal(hPos.setFromMatrixPosition(c.matrixWorld));
+    const hw = HAND_W / 2, hh = HAND_W * HH / HW / 2, inside = Math.abs(lp.x) < hw && Math.abs(lp.y) < hh;
+    if (inside && lp.z < 0.015 && lp.z > -0.03) { if (!c.userData.poked) { c.userData.poked = true; xrHandPress({ x: lp.x / (2 * hw) + 0.5, y: lp.y / (2 * hh) + 0.5 }); } }
+    else if (!inside || lp.z > 0.04) c.userData.poked = false;
+  }
+  const b = hover && xrHandBtns.find(b => hover.x >= b.x && hover.x <= b.x + b.w && hover.y >= b.y && hover.y <= b.y + b.h);
+  const key = b ? b.x + "," + b.y : "";
+  if (key !== xrHandHoverKey) { xrHandHoverKey = key; xrHandHover = b ? { x: b.x + 1, y: b.y + 1 } : null; drawHand(); }
 }
 function xrHandPress(uv) {
   const x = uv.x * HW, y = (1 - uv.y) * HH;
@@ -2301,8 +2327,11 @@ function exitVR() { try { renderer.xr.getSession()?.end(); } catch (e) {} }
 function toggleXRMenu() { if (!ensureHand()) return; xrHand.visible = !xrHand.visible; if (xrHand.visible) drawHand(); }
 function pollXRButtons() {
   const s = renderer.xr.getSession(); if (!s) return; let p = false;
-  for (const src of s.inputSources) { const b = src.gamepad?.buttons; if (b && (b[4]?.pressed || b[5]?.pressed)) p = true; }
+  let a = false, x = false;
+  for (const src of s.inputSources) { const b = src.gamepad?.buttons; if (!b) continue; if (b[5]?.pressed) p = true; if (b[4]?.pressed) { if (src.handedness === "left") x = true; else a = true; } }
   if (p && !xrBtnLatch) toggleXRMenu(); xrBtnLatch = p;
+  if (a && !xrALatch && guide.on) nextStep(); xrALatch = a;                 /* A: next step */
+  if (x && !xrXLatch && guide.on) $("#gPlay").onclick(); xrXLatch = x;      /* X: listen / pause */
 }
 
 const stepLabel = s => scene(s.scene)?.name || "?";
@@ -2719,7 +2748,7 @@ renderer.setAnimationLoop(() => {
   if (screen !== "app") return;
   const xr = renderer.xr.isPresenting;
   if (guide.tween) stepTween(performance.now());
-  if (xr) { pollXRButtons(); if (M) { if (!guide.tween) xrLocomotion(dt); rig.position.copy(player); } }
+  if (xr) { pollXRButtons(); updateHandPointer(); if (M) { if (!guide.tween) xrLocomotion(dt); rig.position.copy(player); } }
   else if (!cur) { /* empty project */ }
   else if (view === "pano") {
     camera.rotation.set(deg(pitch), -deg(yaw), 0);

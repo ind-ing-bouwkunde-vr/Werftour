@@ -51,11 +51,11 @@ kan je de tour exporteren en openen via de [VR-viewer starter](https://github.co
 
 **In VR:**
 
-- Op je **linkerhand** zit een scherm, zoals een tablet. Richt met je rechterhand en druk op de trigger.
+- Op je **linkerhand** zit een scherm, zoals een tablet. Richt met je rechtercontroller (je ziet een wit bolletje en de knop licht op) en druk op de trigger, of tik met de punt van je rechtercontroller op het scherm.
 - Je kiest er **Start de rondleiding**, of je kijkt zelf rond door op icoontjes te richten.
 - Tijdens de rondleiding staat er de volledige uitleg van de stap. Is de tekst lang, blader dan met **▼ verder**.
   Daaronder vind je **◀ Vorige · ▶ Beluister / ❚❚ Pauze · Volgende ▶** en **■ Stop de rondleiding**.
-- **✕ VR verlaten** staat altijd rechtsboven op het scherm. Met knop **B of Y** verberg of toon je het scherm.
+- **✕ VR verlaten** staat altijd rechtsboven op het scherm. Met knop **B of Y** verberg of toon je het scherm. Sneltoetsen tijdens de rondleiding: **A** = volgende stap, **X** = beluisteren/pauze.
 - In een BIM-model stap je met de linker stick en draai je met de rechter stick (in stappen van 30°, tegen misselijkheid).
 
 **Gesproken uitleg op de Quest:** de Quest kan zelf geen tekst voorlezen. Laat de uitleg daarom op de laptop
