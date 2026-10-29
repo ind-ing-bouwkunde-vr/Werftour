@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Werftour Studio</title>
-<meta name="description" content="Gratis app om zelf virtuele werfbezoeken te maken: 360°-rondleidingen, 360°-video's en BIM-modellen, op pc, gsm en Meta Quest.">
+<meta name="description" content="Gratis app om zelf virtuele werfbezoeken te maken: 360°-rondleidingen, 360°-video's en BIM-modellen, op pc, gsm en een VR-bril.">
 <meta name="theme-color" content="#e2600c">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png" type="image/png">
@@ -100,7 +100,7 @@ header.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-block
 .stage.drag::after{content:"Laat los om toe te voegen";position:absolute;inset:12px;border:3px dashed var(--accent);border-radius:12px;display:grid;place-items:center;color:#fff;background:rgba(226,96,12,.25);font-weight:600;font-size:18px;z-index:9}
 
 /* editor layout */
-main{display:grid;grid-template-columns:330px 1fr;min-height:0}
+main{display:grid;grid-template-columns:360px 1fr;min-height:0}
 aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;min-height:0;display:flex;flex-direction:column;position:relative}
 .sec{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
 .sec h2{margin:0;font-family:var(--f-display);font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -141,6 +141,57 @@ label.chk{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--fg)
 .ti{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:var(--f-display);font-weight:700;font-size:13px}
 .prev{border-radius:var(--r);max-height:140px;object-fit:contain;align-self:flex-start}
 .rec{color:var(--bad);font-weight:600}
+/* edit mode: the side panel follows the order of making a tour */
+aside.flow #scenesSec{order:1} aside.flow #sceneProps{order:2} aside.flow #hsSec{order:3} aside.flow #hsEditor{order:4}
+aside.flow #guideSec{order:5} aside.flow #stepEditor{order:6} aside.flow #finishSec{order:7} aside.flow .foot{order:99}
+aside.flow #startSec{display:none}
+.sh{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.sn{display:none}
+aside.flow .sec:not(.sub){border-bottom:0;border-top:1px solid var(--line)}
+aside.flow .sec:not(.sub) > h2{color:var(--fg);font-size:13px}
+aside.flow .sn{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--line);color:var(--fg);font-family:var(--f-mono);font-size:11px;letter-spacing:0;flex:none}
+aside.flow .sn.next{background:var(--accent);color:var(--accent-fg)}
+aside.flow .sn.done{background:var(--ok);color:#fff}
+aside.flow .sec.later > :not(h2){opacity:.6}
+/* editors open directly under the item you clicked */
+.sec.sub{padding:10px 12px;margin:2px 0 6px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg);gap:8px}
+.sec.sub > h2{font-size:11px}
+#flowBar{display:none}
+aside.flow #flowBar{display:flex;order:0;flex-direction:column;gap:8px;padding:12px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
+.fb-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-family:var(--f-display);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.fb-seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px}
+.fb-seg span{height:5px;border-radius:3px;background:var(--line)}
+.fb-seg span.done{background:var(--ok)} .fb-seg span.next{background:var(--accent)}
+aside.flow #scenesSec{border-top:0}
+aside.flow .sec:not(.sub) > :not(h2){margin-left:30px}
+/* drag to reorder photos */
+.scene .grip{display:none}
+aside.flow .scene{grid-template-columns:14px 56px 1fr}
+aside.flow .scene .th{width:56px;height:28px}
+aside.flow .scene .grip{display:block;color:var(--muted);font-size:14px;line-height:1;letter-spacing:-3px;cursor:grab;text-align:center;user-select:none}
+.scene.dragging{opacity:.4}
+.drop-before{box-shadow:0 -3px 0 var(--accent)}
+.drop-after{box-shadow:0 3px 0 var(--accent)}
+.hs-item .grip{display:none}
+aside.flow #stepList .hs-item .grip{display:block;color:var(--muted);font-size:14px;line-height:1;letter-spacing:-3px;cursor:grab;width:12px;text-align:center;user-select:none;flex:none}
+.hs-item.dragging{opacity:.4}
+.grp{display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px solid var(--line)}
+.grp-end{flex-direction:row;justify-content:space-between;align-items:center}
+.gl{font-family:var(--f-display);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.btn.ghost.danger{color:var(--bad)}
+fieldset.answers{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;min-width:0}
+fieldset.answers legend{padding:0;margin-bottom:4px;font-size:12px;color:var(--muted);font-weight:500}
+fieldset.answers legend span{font-weight:400}
+.ans{display:flex;gap:6px;align-items:center}
+.ans input:not([type=radio]){flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:var(--r);padding:6px 8px;font-size:13px;color:var(--fg)}
+.ans.ok input:not([type=radio]){border-color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,var(--bg))}
+/* view mode: photos as a grid to look around yourself */
+aside:not(.flow) .scenes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+aside:not(.flow) .scene{grid-template-columns:1fr;gap:0;padding:0;border-color:var(--line);overflow:hidden;align-items:start}
+aside:not(.flow) .scene .th{width:100%;height:64px;border-radius:0}
+aside:not(.flow) .scene > span:last-child{padding:6px 8px 8px}
+aside:not(.flow) .scenes > .hint{grid-column:1/-1}
+.coord.ok{color:var(--ok)} .coord.warn{color:var(--warn)}
 .foot{margin-top:auto;padding:12px 16px;font-size:11px;color:var(--muted);line-height:1.5;display:flex;flex-direction:column;gap:4px}
 
 /* stage */
@@ -292,9 +343,9 @@ input[type=file]{display:none}
         <button id="modeEdit" aria-pressed="false">Bewerken</button>
       </div>
       <div class="tools">
-        <button class="btn" id="questBtn" title="Stuur deze tour naar een Meta Quest met een QR-code">Naar Quest</button>
+        <button class="btn" id="questBtn" title="Stuur deze tour naar een VR-bril met een QR-code">Naar VR-bril</button>
         <button class="btn" id="vrBtn">VR-bril</button>
-        <button class="btn primary" id="exportBtn" data-edit title="Eén bestand voor de Quest én je back-up">Exporteren</button>
+        <button class="btn" id="exportBtn" data-edit title="Eén bestand voor de VR-bril én je back-up">Exporteren</button>
       </div>
     </div>
   </header>
@@ -303,7 +354,7 @@ input[type=file]{display:none}
     <div class="home-in">
       <div class="hero">
         <h1>Virtuele werfbezoeken</h1>
-        <p>Maak een rondleiding met je eigen 360°-foto's, of loop rond in je eigen BIM-model. Voeg info, vragen, plannen en gesproken uitleg toe, en bekijk het resultaat op pc, gsm of de Meta Quest.</p>
+        <p>Maak een rondleiding met je eigen 360°-foto's, of loop rond in je eigen BIM-model. Voeg info, vragen, plannen en gesproken uitleg toe, en bekijk het resultaat op pc, gsm of een VR-bril.</p>
         <p class="hint safety"><b>Veiligheid in VR:</b> VR kan bewegingsziekte (motion sickness) veroorzaken. Gebruik VR zittend of in een vrije ruimte, zonder obstakels, trappen of mensen in de buurt. Stop meteen bij duizeligheid, misselijkheid, hoofdpijn of vermoeide ogen. Niet geschikt voor kinderen jonger dan 13 jaar. Volg ook de veiligheidsvoorschriften van je VR-bril.</p>
       </div>
       <div class="modes">
@@ -331,7 +382,7 @@ input[type=file]{display:none}
       </div>
       <section class="projects">
         <div class="ph"><h2>Mijn projecten</h2><button class="btn" id="openFileBtn">Bestand openen…</button></div>
-        <p class="hint">Je projecten worden automatisch in deze browser bewaard. Exporteer regelmatig: dat bestand is je back-up, je kan het op de Quest zetten en je kan het hier opnieuw openen om verder te werken.</p>
+        <p class="hint">Je projecten worden automatisch in deze browser bewaard. Exporteer regelmatig: dat bestand is je back-up, je kan het op de VR-bril zetten en je kan het hier opnieuw openen om verder te werken.</p>
         <div class="plist" id="projList"></div>
         <div class="drophint">Sleep hier een geëxporteerd Werftour-bestand (.html of .zip), 360°-foto's, 360°-video's of een IFC-bestand naartoe.</div>
       </section>
@@ -341,8 +392,8 @@ input[type=file]{display:none}
   <div class="home qhome" id="questHome" hidden>
     <div class="home-in" style="max-width:780px">
       <div class="hero">
-        <h1>Werftour op de Quest</h1>
-        <p>Open een tour die op een laptop klaarstaat. Klik op de laptop in Werftour op <b>Naar Quest</b>: daar zie je een QR-code en een code van 6 tekens.</p>
+        <h1>Werftour op de VR-bril</h1>
+        <p>Open een tour die op een laptop klaarstaat. Klik op de laptop in Werftour op <b>Naar VR-bril</b>: daar zie je een QR-code en een code van 6 tekens.</p>
       </div>
       <section class="mode-card">
         <h2>Code van de laptop</h2>
@@ -361,30 +412,29 @@ input[type=file]{display:none}
 
   <main id="main" hidden>
     <aside id="side">
+      <div id="flowBar"><div class="fb-top"><span id="flowTitle">Rondleiding maken</span><span class="coord" id="flowCount"></span></div><div class="fb-seg" id="flowSeg"></div></div>
       <section class="sec" id="startSec" hidden>
         <h2>Aan de slag <button class="btn ghost small" id="hideStart">verbergen</button></h2>
         <ol class="checklist" id="checklist"></ol>
       </section>
       <section class="sec" id="guideSec">
-        <h2><span id="guideHead">Rondleiding</span> <span class="coord" id="stepCount"></span></h2>
+        <h2><span class="sh"><span class="sn" id="snGuide"></span><span id="guideHead">Rondleiding</span></span> <span class="coord" id="stepCount"></span></h2>
         <button class="btn primary" id="guideStartBtn">▶ Start de rondleiding</button>
         <p class="hint" id="guideHint"></p>
         <div class="hs-list" id="stepList"></div>
-        <div class="col" data-edit>
+        <div class="col" data-edit id="guideTools">
           <button class="btn small" id="addStep">+ Huidig beeld als stap</button>
           <div class="ttsbox" id="ttsBox"><b>Uitleg laten inspreken</b><p class="hint" id="ttsState"></p>
             <div class="row"><select id="ttsVoiceSel" aria-label="Stem"><option value="nl_BE-nathalie-medium">Nathalie (Vlaams)</option><option value="nl_BE-rdh-medium">Rdh (Vlaams)</option></select><button class="btn small primary" id="ttsMake">🔊 Maak audio</button></div></div>
-          <label class="chk"><input type="checkbox" id="optTts"> Tekst voorlezen als er geen opname is</label>
-          <label class="chk"><input type="checkbox" id="optAuto"> Automatisch naar de volgende stap</label>
-          <label class="chk"><input type="checkbox" id="optStart"> Rondleiding aanbieden bij het openen</label>
         </div>
       </section>
       <section class="sec" id="scenesSec">
-        <h2><span id="scenesHead">Standpunten</span> <span class="coord" id="sceneCount"></span></h2>
+        <h2><span class="sh"><span class="sn" id="snScenes"></span><span id="scenesHead">Standpunten</span></span> <span class="coord" id="sceneCount"></span></h2>
+        <p class="hint" id="scenesHint" hidden></p>
         <div class="scenes" id="sceneList"></div>
         <div class="row" data-edit id="addRow"></div>
       </section>
-      <section class="sec" id="sceneProps" data-edit hidden>
+      <section class="sec sub" id="sceneProps" data-edit hidden>
         <h2 id="propsHead">Dit standpunt</h2>
         <label class="f">Naam<input id="sceneName"></label>
         <label class="f">Korte uitleg<textarea id="sceneDesc" rows="2"></textarea></label>
@@ -397,11 +447,11 @@ input[type=file]{display:none}
         </div>
       </section>
       <section class="sec" id="hsSec">
-        <h2>Icoontjes <span class="coord" id="hsCount"></span></h2>
+        <h2><span class="sh"><span class="sn" id="snHs"></span><span id="hsHead">Icoontjes</span></span> <span class="coord" id="hsCount"></span></h2>
         <p class="hint" id="hsHint"></p>
         <div class="hs-list" id="hsList"></div>
       </section>
-      <section class="sec" id="hsEditor" hidden>
+      <section class="sec sub" id="hsEditor" hidden>
         <h2>Icoontje bewerken <span class="coord" id="hsCoord"></span></h2>
         <div class="typegrid" id="typeGrid"></div>
         <label class="f">Titel<input id="hsTitle"></label>
@@ -417,25 +467,39 @@ input[type=file]{display:none}
         <div id="fLink" class="col"><label class="f">Ga naar standpunt<select id="hsTarget"></select></label></div>
         <div id="fQuiz" class="col">
           <label class="f">Vraag<textarea id="hsQ" rows="2"></textarea></label>
-          <label class="f">Antwoord A<input id="hsO0"></label>
-          <label class="f">Antwoord B<input id="hsO1"></label>
-          <label class="f">Antwoord C<input id="hsO2"></label>
-          <label class="f">Juiste antwoord<select id="hsCorrect"><option value="0">A</option><option value="1">B</option><option value="2">C</option></select></label>
+          <fieldset class="answers"><legend>Antwoorden <span>· duid het juiste aan</span></legend>
+            <label class="ans"><input type="radio" name="hsCorrectR" value="0" aria-label="A is juist"><input id="hsO0" aria-label="Antwoord A" placeholder="Antwoord A"></label>
+            <label class="ans"><input type="radio" name="hsCorrectR" value="1" aria-label="B is juist"><input id="hsO1" aria-label="Antwoord B" placeholder="Antwoord B"></label>
+            <label class="ans"><input type="radio" name="hsCorrectR" value="2" aria-label="C is juist"><input id="hsO2" aria-label="Antwoord C" placeholder="Antwoord C"></label>
+          </fieldset>
+          <select id="hsCorrect" hidden><option value="0">A</option><option value="1">B</option><option value="2">C</option></select>
           <label class="f">Uitleg na het antwoorden<textarea id="hsExpl" rows="2"></textarea></label>
         </div>
         <div id="fMedia" class="col"><p class="hint" id="hsMediaState"></p><div class="row"><button class="btn small" id="hsMediaBtn">Bestand kiezen</button><button class="btn small" id="hsRec">● Opnemen</button><span id="hsMediaDelWrap"></span><input type="file" id="hsMediaFile"></div></div>
         <div id="fWeb" class="col"><label class="f">Webadres<input id="hsUrl" type="url" placeholder="https://"></label></div>
         <div class="row"><button class="btn small" id="hsMove">Verplaats</button><span id="delHsWrap"></span></div>
       </section>
-      <section class="sec" id="stepEditor" hidden>
+      <section class="sec sub" id="stepEditor" hidden>
         <h2>Stap bewerken <span class="coord" id="stepNo"></span></h2>
         <label class="f">Titel<input id="stTitle"></label>
         <label class="f">Gesproken tekst (ook ondertitel)<textarea id="stText" rows="4"></textarea></label>
         <label class="f">Wijs naar icoontje<select id="stHs"></select></label>
         <label class="chk"><input type="checkbox" id="stOpen"> Open dat icoontje automatisch</label>
-        <p class="hint" id="stAudioState"></p>
-        <div class="row"><button class="btn small" id="stRec">● Opnemen</button><button class="btn small" id="stAudioBtn">Audiobestand kiezen</button><button class="btn small" id="stTts">🔊 Inspreken met stem</button><button class="btn small" id="stListen">▶ Beluister</button><span id="stAudioDelWrap"></span><input type="file" id="stAudioFile" accept="audio/*"></div>
-        <div class="row"><button class="btn small" id="stRecapture">Huidig beeld gebruiken</button><button class="btn small" id="stUp" aria-label="Stap omhoog">↑</button><button class="btn small" id="stDown" aria-label="Stap omlaag">↓</button><button class="btn small" id="stPreview">Bekijk deze stap</button><span id="stDelWrap"></span></div>
+        <div class="grp"><span class="gl">Beeld</span>
+          <div class="row"><button class="btn small" id="stRecapture">Huidig beeld gebruiken</button><button class="btn small" id="stPreview">▶ Bekijk deze stap</button></div></div>
+        <div class="grp"><span class="gl">Audio</span><p class="hint" id="stAudioState"></p>
+          <div class="row"><button class="btn small" id="stRec">● Opnemen</button><button class="btn small" id="stTts">Inspreken met stem</button><button class="btn small" id="stAudioBtn">Bestand kiezen</button><button class="btn small" id="stListen">▶ Beluister</button><span id="stAudioDelWrap"></span><input type="file" id="stAudioFile" accept="audio/*"></div></div>
+        <div class="grp grp-end"><span class="row"><button class="btn small" id="stUp" aria-label="Stap omhoog" title="Stap omhoog">↑</button><button class="btn small" id="stDown" aria-label="Stap omlaag" title="Stap omlaag">↓</button></span><span id="stDelWrap"></span></div>
+      </section>
+      <section class="sec" id="finishSec" data-edit hidden>
+        <h2><span class="sh"><span class="sn" id="snFinish"></span><span>Afwerken</span></span></h2>
+        <div class="col" id="guideOpts">
+          <label class="chk"><input type="checkbox" id="optStart"> Rondleiding aanbieden bij het openen</label>
+          <label class="chk"><input type="checkbox" id="optAuto"> Automatisch naar de volgende stap</label>
+          <label class="chk"><input type="checkbox" id="optTts"> Tekst voorlezen als er geen opname is</label>
+        </div>
+        <button class="btn primary" id="finishExport">Exporteren naar de VR-bril</button>
+        <p class="hint" id="finishHint"></p>
       </section>
       <div class="foot"><span id="projSize"></span><span id="credits" hidden>Demobeelden: Poly Haven (CC0), via de three.js-voorbeelden. Demomodel: IFC-testbestand van web-ifc (That Open Company).</span></div>
     </aside>
@@ -645,7 +709,7 @@ function renderSize() {
   const el = $("#projSize");
   if (!tour || viewerOnly || tour.demo) { el.textContent = ""; return; }
   const vs = tour.scenes.reduce((a, s) => a + (s.videoSize || 0), 0);
-  el.textContent = `Projectgrootte ≈ ${fmtMB(projSize * 0.75)}` + (vs ? ` + video's ${fmtMB(vs)}` : "") + (projSize > 160e6 ? " · groot: de Quest kan traag laden" : "");
+  el.textContent = `Projectgrootte ≈ ${fmtMB(projSize * 0.75)}` + (vs ? ` + video's ${fmtMB(vs)}` : "") + (projSize > 160e6 ? " · groot: de VR-bril kan traag laden" : "");
 }
 
 /* ---------- three ---------- */
@@ -1083,18 +1147,19 @@ function renderStart() {
     ["Voeg je 360°-video('s) toe: mp4 uit Insta360 Studio", tour.scenes.length > 0],
     ["Pauzeer de video en klik in het beeld om een icoontje te plaatsen", tour.scenes.some(s => s.hotspots.length)],
     ["Zet bij vragen ‘Pauzeer de video’ aan", tour.scenes.some(s => s.hotspots.some(h => h.pause))],
-    ["Exporteer (zip) voor de Quest en als back-up", !!tour.lastExport]
+    ["Exporteer (zip) voor de VR-bril en als back-up", !!tour.lastExport]
   ] : isBim() ? [
     ["Laad een IFC-bestand (export uit Revit)", tour.scenes.length > 0],
     ["Klik op een bouwdeel om er een icoontje op te zetten", tour.scenes.some(s => s.hotspots.length)],
     ["Kies een startpunt: Rondlopen › ‘Huidige plek als startpunt’", tour.scenes.some(s => s.spawn)],
-    ["Exporteer voor de Quest en als back-up", !!tour.lastExport]
+    ["Exporteer voor de VR-bril en als back-up", !!tour.lastExport]
   ] : [
     ["Voeg je 360°-foto's toe", tour.scenes.length > 0],
     ["Klik in een foto om een icoontje te plaatsen", tour.scenes.some(s => s.hotspots.length)],
     ["Maak de rondleiding: ‘Huidig beeld als stap’", route().length > 0],
-    ["Exporteer voor de Quest en als back-up", !!tour.lastExport]
+    ["Exporteer voor de VR-bril en als back-up", !!tour.lastExport]
   ];
+  renderFlow(edit);
   const all = items.every(i => i[1]);
   sec.hidden = !edit || all || !!tour.hideStart;
   if (sec.hidden) return;
@@ -1109,6 +1174,33 @@ function renderStart() {
     ol.appendChild(li);
   });
 }
+/* edit mode: the side panel is a numbered step-by-step flow */
+function renderFlow(edit) {
+  $("#side").classList.toggle("flow", edit);
+  if (!edit) return;
+  const steps = [["#snScenes", tour.scenes.length > 0], ["#snHs", tour.scenes.some(s => s.hotspots.length)]];
+  if (!isVid()) steps.push(["#snGuide", route().length > 0, isBim()]);
+  steps.push(["#snFinish", !!tour.lastExport]);
+  $("#flowTitle").textContent = isBim() ? "BIM-project maken" : isVid() ? "Video-tour maken" : "Rondleiding maken";
+  const nDone = steps.filter(x => x[1]).length;
+  $("#flowCount").textContent = `${nDone} van ${steps.length} klaar`;
+  let next = false;
+  const seg = $("#flowSeg"); seg.innerHTML = "";
+  steps.forEach(([id, done, optional], i) => {
+    const el = $(id); el.textContent = done ? "✓" : i + 1;
+    const isNext = !done && !optional && !next; if (isNext) next = true;
+    el.className = "sn" + (done ? " done" : isNext ? " next" : "");
+    const bar = document.createElement("span"); bar.className = done ? "done" : isNext ? "next" : ""; seg.appendChild(bar);
+    el.closest(".sec").classList.toggle("later", !done && !isNext && !optional && i > 0 && !steps[i - 1][1]);
+  });
+  $("#snGuide").closest(".sec").classList.toggle("later", !isVid() && !tour.scenes.length);
+  $("#finishSec").classList.toggle("later", !tour.scenes.length);
+  $("#finishExport").disabled = !tour.scenes.length;
+  $("#finishHint").textContent = tour.lastExport
+    ? "Geëxporteerd. Exporteer opnieuw na elke wijziging. Het bestand is ook je back-up."
+    : "Eén bestand voor de VR-bril én je back-up. Exporteer opnieuw na elke wijziging.";
+}
+$("#finishExport").onclick = () => $("#exportBtn").click();
 $("#hideStart").onclick = () => { tour.hideStart = true; save(); render(); };
 function renderEmpty() {
   const el = $("#empty");
@@ -1117,11 +1209,41 @@ function renderEmpty() {
   const edit = mode === "edit" && !viewerOnly;
   if (!edit) { el.innerHTML = `<div><div class="emp-ico">…</div><h3>Nog geen inhoud</h3><p>${viewerOnly ? "Deze tour is leeg." : "Klik bovenaan op Bewerken om inhoud toe te voegen."}</p></div>`; return; }
   el.innerHTML = isVid()
-    ? `<div><div class="emp-ico">▶</div><h3>Voeg je 360°-video toe</h3><p>Exporteer in Insta360 Studio als 360°-video: mp4 met H.264, verhouding 2:1. Voor de Quest is 3840 × 1920 een veilige resolutie. Een lang bezoek splits je best in delen, bijvoorbeeld prefab, schrijnwerkerij en werf.</p><button class="btn primary" id="empPick">360°-video kiezen</button><p class="hint" style="color:#9fb0bb">Je kan de video's ook hierheen slepen.</p></div>`
+    ? `<div><div class="emp-ico">▶</div><h3>Voeg je 360°-video toe</h3><p>Exporteer in Insta360 Studio als 360°-video: mp4 met H.264, verhouding 2:1. Voor de VR-bril is 3840 × 1920 een veilige resolutie. Een lang bezoek splits je best in delen, bijvoorbeeld prefab, schrijnwerkerij en werf.</p><button class="btn primary" id="empPick">360°-video kiezen</button><p class="hint" style="color:#9fb0bb">Je kan de video's ook hierheen slepen.</p></div>`
     : isBim()
     ? `<div><div class="emp-ico">IFC</div><h3>Laad je BIM-model</h3><p>Exporteer je model in Revit via Bestand › Exporteren › IFC (IFC 2x3 of IFC4). Het bestand wordt in je browser omgezet; er gaat niets naar een server.</p><button class="btn primary" id="empPick">IFC-bestand kiezen</button><p class="hint" style="color:#9fb0bb">Je kan het bestand ook hierheen slepen.</p></div>`
     : `<div><div class="emp-ico">360°</div><h3>Voeg je eerste 360°-foto's toe</h3><p>Exporteer de foto's in Insta360 Studio als 360°-foto (JPG, verhouding 2:1). Je kan er meerdere tegelijk kiezen.</p><button class="btn primary" id="empPick">360°-foto's kiezen</button><p class="hint" style="color:#9fb0bb">Je kan de foto's ook hierheen slepen.</p></div>`;
   $("#empPick").onclick = () => (isVid() ? $("#videoFile") : isBim() ? $("#ifcFile") : $("#sceneFile")).click();
+}
+/* fill a list but keep an open editor block in place (moving it would drop the focus while typing);
+   the items before index `at` go above the editor, the rest below */
+function fillAround(list, nodes, editor, at) {
+  for (const c of [...list.children]) if (c !== editor) c.remove();
+  if (at < 0 || !editor) { nodes.forEach(n => list.appendChild(n)); return; }
+  if (editor.parentNode !== list) list.appendChild(editor);
+  nodes.forEach((n, i) => i <= at ? list.insertBefore(n, editor) : list.appendChild(n));
+}
+const escH = t => String(t ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const hintP = t => { const p = document.createElement("p"); p.className = "hint"; p.textContent = t; return p; };
+/* drag to reorder an item within its own list (photos, steps) */
+let dragItem = null;
+function makeDraggable(b, item, getList, on) {
+  b.draggable = on && getList().length > 1;
+  if (!b.draggable) return;
+  const clear = () => document.querySelectorAll(".drop-before,.drop-after").forEach(x => x.classList.remove("drop-before", "drop-after"));
+  const after = e => { const r = b.getBoundingClientRect(); return e.clientY > r.top + r.height / 2; };
+  const mine = () => dragItem && dragItem !== item && getList().includes(dragItem);
+  b.addEventListener("dragstart", e => { dragItem = item; b.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", item.name || item.title || ""); });
+  b.addEventListener("dragend", () => { dragItem = null; b.classList.remove("dragging"); clear(); });
+  b.addEventListener("dragover", e => { if (!mine()) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; clear(); b.classList.add(after(e) ? "drop-after" : "drop-before"); });
+  b.addEventListener("dragleave", () => b.classList.remove("drop-before", "drop-after"));
+  b.addEventListener("drop", e => {
+    if (!mine()) return; e.preventDefault();
+    const a = getList(), moved = dragItem, below = after(e);
+    a.splice(a.indexOf(moved), 1);
+    a.splice(a.indexOf(item) + (below ? 1 : 0), 0, moved);
+    dragItem = null; save(); render(); toast("Volgorde aangepast");
+  });
 }
 function renderSide() {
   if (!tour) return;
@@ -1132,7 +1254,7 @@ function renderSide() {
   $("#viewSeg").hidden = !M;
   $("#vWalk").setAttribute("aria-pressed", view === "walk"); $("#vOrbit").setAttribute("aria-pressed", view === "orbit");
   $("#pad").hidden = !(M && view === "walk") || guide.on;
-  $("#scenesHead").textContent = isBim() ? "Modellen" : isVid() ? "Video's" : "Standpunten";
+  $("#scenesHead").textContent = isBim() ? "Modellen" : isVid() ? "Video's" : (!edit && route().length ? "Zelf rondkijken" : "Standpunten");
   $("#sceneCount").textContent = tour.scenes.length || "";
   const ar = $("#addRow");
   if (!ar.dataset.kind || ar.dataset.kind !== tour.kind) {
@@ -1148,21 +1270,30 @@ function renderSide() {
     if ($("#optNext")) $("#optNext").onchange = e => { tour.autoNext = e.target.checked; save(); };
   }
   if ($("#optNext")) $("#optNext").checked = tour.autoNext !== false;
-  const list = $("#sceneList"); list.innerHTML = "";
+  const list = $("#sceneList"), nodes = [];
+  const sh = $("#scenesHint"); sh.hidden = !edit || tour.scenes.length < 2;
+  sh.innerHTML = `Sleep ${isBim() ? "een model" : isVid() ? "een video" : "een foto"} aan <b>⋮⋮</b> om de volgorde te wijzigen.`;
   for (const s of tour.scenes) {
     const b = document.createElement("button"); b.className = "scene"; b.setAttribute("aria-current", s === cur);
     const th = s.thumb || (!isModel(s) && !isVideo(s) && s.image && !s.image.startsWith("data:") ? s.image : "");
-    b.innerHTML = `${th ? '<img class="th" alt="">' : '<span class="th"></span>'}<span><span class="kind"></span><b></b><small></small></span>`;
+    b.innerHTML = `<span class="grip" aria-hidden="true">⋮⋮</span>${th ? '<img class="th" alt="">' : '<span class="th"></span>'}<span><span class="kind"></span><b></b><small></small></span>`;
     if (th) b.querySelector("img").src = th;
     b.querySelector(".kind").textContent = isModel(s) ? "BIM-model" : isVideo(s) ? `360°-video · ${fmtT(s.duration)}` : "360°-foto";
     b.querySelector("b").textContent = s.name;
     b.querySelector("small").textContent = s.hotspots.length + " icoontjes" + (tour.start === s.id && tour.scenes.length > 1 ? " · start" : "");
-    b.addEventListener("click", () => { stopGuide(); go(s.id); }); list.appendChild(b);
+    b.addEventListener("click", () => { stopGuide(); go(s.id); });
+    makeDraggable(b, s, () => tour.scenes, edit); nodes.push(b);
   }
-  if (!tour.scenes.length) list.innerHTML = `<p class="hint">${isBim() ? "Nog geen model geladen." : isVid() ? "Nog geen video toegevoegd." : "Nog geen foto's toegevoegd."}</p>`;
+  if (!tour.scenes.length) nodes.push(hintP(isBim() ? "Nog geen model geladen." : isVid() ? "Nog geen video toegevoegd." : "Nog geen foto's toegevoegd."));
+  fillAround(list, nodes, $("#sceneProps"), edit && cur ? tour.scenes.indexOf(cur) : -1);
   $("#sceneProps").hidden = !edit || !cur;
-  $("#hsSec").hidden = !cur;
-  if (!cur) { $("#hsEditor").hidden = true; return; }
+  $("#hsSec").hidden = !cur && !edit;
+  if (!cur) {
+    $("#hsEditor").hidden = true;
+    $("#hsCount").textContent = ""; fillAround($("#hsList"), [], $("#hsEditor"), -1);
+    $("#hsHint").textContent = isBim() ? "Laad eerst een model in stap 1." : isVid() ? "Voeg eerst een video toe in stap 1." : "Voeg eerst 360°-foto's toe in stap 1.";
+    return;
+  }
   $("#propsHead").textContent = M ? "Dit model" : isVideo(cur) ? "Dit deel" : "Dit standpunt";
   if (document.activeElement !== $("#sceneName")) $("#sceneName").value = cur.name || "";
   if (document.activeElement !== $("#sceneDesc")) $("#sceneDesc").value = cur.description || "";
@@ -1176,14 +1307,17 @@ function renderSide() {
   $("#sceneUp").disabled = ci === 0; $("#sceneDown").disabled = ci === tour.scenes.length - 1;
   $("#delSceneWrap").innerHTML = '<button class="btn small danger" id="delScene">Verwijder</button>';
   $("#delScene").onclick = () => confirmInline("#delSceneWrap", M ? "Model verwijderen?" : isVideo(cur) ? "Video verwijderen?" : "Standpunt verwijderen?", deleteScene);
-  $("#hsCount").textContent = cur.hotspots.length || "";
-  $("#hsHint").innerHTML = isVideo(cur)
+  const totalHs = tour.scenes.reduce((n, s) => n + s.hotspots.length, 0);
+  $("#hsCount").textContent = edit && tour.scenes.length > 1 ? (totalHs ? totalHs + " in totaal" : "") : (cur.hotspots.length || "");
+  const where = edit && tour.scenes.length > 1 ? `Op <b>${escH(cur.name)}</b>. ` : !edit && cur.hotspots.length ? `Hier: <b>${cur.hotspots.length} ${cur.hotspots.length === 1 ? "icoontje" : "icoontjes"}</b>. ` : "";
+  $("#hsList").hidden = !edit;
+  $("#hsHint").innerHTML = where + (isVideo(cur)
     ? (edit ? "<b>Pauzeer de video</b> en klik in het beeld om een icoontje te plaatsen. Het verschijnt vanaf dat moment; de tijden pas je aan in het blok hieronder." : "Sleep om rond te kijken. Icoontjes verschijnen tijdens de video; bij vragen pauzeert de video. <kbd>Spatie</kbd> pauzeert of speelt af.")
     : edit
     ? (M ? "<b>Klik op een bouwdeel</b> om er een icoontje op te zetten. Klik op een icoontje om het te bewerken." : "<b>Klik in de foto</b> om een icoontje te plaatsen. Klik op een icoontje om het te bewerken.")
     : (M ? "<b>Dubbelklik</b> om ergens naartoe te lopen. <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> om te stappen, <kbd>Shift</kbd> om sneller te gaan, slepen om rond te kijken. <b>Klik op een bouwdeel</b> voor de BIM-gegevens."
-         : "Sleep om rond te kijken, scroll om te zoomen. Klik op een icoontje.");
-  const hlist = $("#hsList"); hlist.innerHTML = "";
+         : "Sleep om rond te kijken, scroll om te zoomen. Klik op een icoontje."));
+  const hlist = $("#hsList"), hnodes = [];
   for (const h of cur.hotspots) {
     const t = TYPES[h.type] || TYPES.info;
     const b = document.createElement("button"); b.className = "hs-item"; b.setAttribute("aria-current", h === selHs);
@@ -1197,9 +1331,10 @@ function renderSide() {
       else { yaw = h.yaw; pitch = clamp(h.pitch, -60, 60); }
       if (mode === "edit") { selHs = h; moving = false; render(); } else activate(h);
     });
-    hlist.appendChild(b);
+    hnodes.push(b);
   }
-  if (!cur.hotspots.length) hlist.innerHTML = `<p class="hint">Nog geen icoontjes op ${M ? "dit model" : "dit standpunt"}.</p>`;
+  if (!cur.hotspots.length) hnodes.push(hintP(`Nog geen icoontjes op ${M ? "dit model" : "dit standpunt"}.`));
+  fillAround(hlist, hnodes, $("#hsEditor"), edit && selHs ? cur.hotspots.indexOf(selHs) : -1);
   renderEditor();
 }
 function renderEditor() {
@@ -1226,6 +1361,7 @@ function renderEditor() {
   setv("#hsTitle", h.title); setv("#hsText", h.text); setv("#hsQ", h.question); setv("#hsUrl", h.url);
   const o = h.options || ["", "", ""]; setv("#hsO0", o[0]); setv("#hsO1", o[1]); setv("#hsO2", o[2]);
   setv("#hsCorrect", String(h.correct ?? 0)); setv("#hsExpl", h.explain);
+  document.querySelectorAll('input[name="hsCorrectR"]').forEach(r => { const on = +r.value === (h.correct ?? 0); r.checked = on; r.closest(".ans").classList.toggle("ok", on); });
   $("#fText").hidden = !["info", "audio", "video", "doc", "web"].includes(ty);
   $("#hsTextLbl").textContent = ty === "info" ? "Tekst" : "Korte uitleg (optioneel)";
   $("#fImg").hidden = ty !== "info";
@@ -1297,6 +1433,7 @@ bind("#hsTarget", v => { selHs.target = v; if (selHs.autoTitle) selHs.title = "N
 bind("#hsQ", v => selHs.question = v);
 [0, 1, 2].forEach(i => bind("#hsO" + i, v => { selHs.options = selHs.options || ["", "", ""]; selHs.options[i] = v; }));
 bind("#hsCorrect", v => selHs.correct = +v, "change");
+document.querySelectorAll('input[name="hsCorrectR"]').forEach(r => r.addEventListener("change", () => { const sel = $("#hsCorrect"); sel.value = r.value; sel.dispatchEvent(new Event("change")); }));
 bind("#hsExpl", v => selHs.explain = v);
 bind("#hsUrl", v => selHs.url = v.trim());
 $("#hsUrl").addEventListener("change", () => { if (selHs?.url && !/^https?:\/\//i.test(selHs.url)) { selHs.url = "https://" + selHs.url; save(); render(); } });
@@ -1522,7 +1659,7 @@ const LEESMIJ = `Werftour – 360°-video
 
 1. Pak deze zip volledig uit. De map 'videos' moet naast index.html blijven staan.
 2. Dubbelklikken op index.html werkt niet voor video: de browser blokkeert dat. Open de map via een webserver, bijvoorbeeld de start_server van de VR-viewer starter, of zet de map op GitHub Pages.
-3. Op de Meta Quest: open de link in de browser en tik op 'VR-bril'.
+3. Op de VR-bril: open de link in de browser en tik op 'VR-bril'.
 4. Verder bewerken: open Werftour, kies op het startscherm 'Bestand openen…' en selecteer deze zip.
 `;
 async function exportTour() {
@@ -1560,7 +1697,7 @@ async function exportTour() {
     }
     if (ok) {
       tour.lastExport = Date.now(); await saveNow(); render();
-      toast(hasVideo ? `Geëxporteerd als ${name} (${fmtMB(size)}). Pak de zip uit en zet de map op GitHub Pages of in de VR-viewer starter; dubbelklikken op index.html werkt niet voor video.` : `Geëxporteerd als ${name} (${fmtMB(size)}). Zet dit bestand op de Quest, of open het later opnieuw in Werftour.`);
+      toast(hasVideo ? `Geëxporteerd als ${name} (${fmtMB(size)}). Pak de zip uit en zet de map op GitHub Pages of in de VR-viewer starter; dubbelklikken op index.html werkt niet voor video.` : `Geëxporteerd als ${name} (${fmtMB(size)}). Zet dit bestand op de VR-bril, of open het later opnieuw in Werftour.`);
     }
   } catch (e) { console.error(e); closeCard(); toast("Exporteren lukte niet: " + (e.message || e)); }
   btn.disabled = false; btn.textContent = "Exporteren";
@@ -1636,7 +1773,7 @@ async function importVideos(files) {
     }
     URL.revokeObjectURL(u);
     if (meta.w && Math.abs(meta.w / meta.h - 2) > 0.05) warn.push(`${f.name} is geen 2:1-video (${meta.w} × ${meta.h})`);
-    else if (meta.w > 4096) warn.push(`${f.name} is ${meta.w} px breed; de Quest speelt 3840 × 1920 vlotter af`);
+    else if (meta.w > 4096) warn.push(`${f.name} is ${meta.w} px breed; de VR-bril speelt 3840 × 1920 vlotter af`);
     try {
       const key = uid(); await lib.put("blobs", key, f);
       const s = { id: uid(), kind: "video", name: niceName(f.name, `Deel ${tour.scenes.length + 1}`), description: "", video: "idb:" + key, videoSize: f.size, duration: meta.d, thumb: meta.thumb, yaw: 0, pitch: 0, hotspots: [] };
@@ -1942,7 +2079,7 @@ async function enterVR() {
 }
 function showHelp(msg) {
   const body = $("#cardBody");
-  body.innerHTML = `<h3>VR op de Quest</h3><p>VR start alleen in de browser van een VR-bril, op een pagina via https of localhost.</p><p>1. Klik in Bewerken op <b>Exporteren</b>. Je krijgt één HTML-bestand met alles erin.\n2. Zet dat bestand in de map van de VR-viewer starter en scan de QR-code met de Quest.\n3. Open de tour en tik op <b>VR-bril</b>.\n\nIn VR: richt de straal en druk op de trigger om een icoontje te openen. In een BIM-model stap je met de linker stick en draai je met de rechter stick.</p><p class="hint"></p><div class="row"><button class="btn">Sluiten</button></div>`;
+  body.innerHTML = `<h3>VR op de VR-bril</h3><p>VR start alleen in de browser van een VR-bril, op een pagina via https of localhost.</p><p>1. Klik in Bewerken op <b>Exporteren</b>. Je krijgt één HTML-bestand met alles erin.\n2. Zet dat bestand in de map van de VR-viewer starter en scan de QR-code met de VR-bril.\n3. Open de tour en tik op <b>VR-bril</b>.\n\nIn VR: richt de straal en druk op de trigger om een icoontje te openen. In een BIM-model stap je met de linker stick en draai je met de rechter stick.</p><p class="hint"></p><div class="row"><button class="btn">Sluiten</button></div>`;
   body.querySelector(".hint").textContent = msg ? "Melding van de browser: " + msg : "Deze browser of dit venster ondersteunt geen WebXR.";
   body.querySelector("button").onclick = closeCard; $("#card").hidden = false;
 }
@@ -2451,25 +2588,34 @@ const stepLabel = s => scene(s.scene)?.name || "?";
 function renderGuideSide() {
   if (!tour) return;
   const r = route(), edit = mode === "edit" && !viewerOnly;
-  $("#guideSec").hidden = (!edit && !r.length) || (edit && !tour.scenes.length) || isVid();
+  $("#guideSec").hidden = (!edit && !r.length) || isVid();
+  $("#guideTools").hidden = !edit || !tour.scenes.length;
+  $("#guideOpts").hidden = isVid();
   $("#guideHead").textContent = isBim() ? "Rondleiding (optioneel)" : "Rondleiding";
   $("#stepCount").textContent = r.length ? r.length + (r.length === 1 ? " stap" : " stappen") : "";
   $("#guideStartBtn").hidden = !r.length || guide.on || edit;
   $("#guideHint").textContent = r.length
-    ? (edit ? "Klik op een stap om ze te bewerken. Een stap onthoudt het standpunt en de kijkrichting." : "Een begeleide tocht met gesproken uitleg.")
+    ? (edit ? "Klik op een stap om ze te bewerken. Een stap onthoudt het standpunt en de kijkrichting." + (r.length > 1 ? " Sleep een stap aan ⋮⋮ om de volgorde te wijzigen." : "")
+            : (() => { const n = new Set(r.map(x => x.scene)).size; return `Een begeleide tocht van ${r.length} ${r.length === 1 ? "stap" : "stappen"} langs ${n} ${isBim() ? (n === 1 ? "plaats" : "plaatsen") : (n === 1 ? "standpunt" : "standpunten")}, met gesproken uitleg. Zet je geluid aan.`; })())
+    : !tour.scenes.length ? (isBim() ? "Laad eerst een model in stap 1." : "Voeg eerst 360°-foto's toe in stap 1. Daarna maak je hier de begeleide tocht.")
     : (isBim() ? "Optioneel: leid de kijker langs vaste plekken in het model. Ga naar een plek en klik op ‘Huidig beeld als stap’." : "Ga naar een standpunt, draai naar wat je wil tonen en klik op ‘Huidig beeld als stap’.");
-  const list = $("#stepList"); list.innerHTML = "";
+  const list = $("#stepList"), snodes = [];
   r.forEach((s, i) => {
     const b = document.createElement("button"); b.className = "hs-item";
     b.setAttribute("aria-current", edit ? s === selStep : (guide.on && guide.i === i));
-    b.innerHTML = `<span class="num"></span><span class="t"></span><span class="coord"></span>`;
+    b.innerHTML = `<span class="grip" aria-hidden="true">⋮⋮</span><span class="num"></span><span class="t"></span><span class="coord"></span>`;
     b.querySelector(".num").textContent = i + 1;
+    makeDraggable(b, s, route, edit);
     b.querySelector(".t").textContent = s.title || "(zonder titel)";
-    b.querySelector(".coord").textContent = s.audio ? (s.audioAuto ? "stem" : "opname") : s.text ? "tekst" : "";
+    const c = b.querySelector(".coord");
+    c.textContent = s.audio ? (edit ? "♪ " : "") + (s.audioAuto ? "stem" : "opname") : s.text ? "tekst" : "";
+    if (edit) c.classList.add(s.audio ? "ok" : "warn");
     b.title = stepLabel(s);
     b.onclick = () => { if (edit) { selStep = s; render(); setTimeout(() => reveal($("#stepEditor")), 30); } else startGuide(i); };
-    list.appendChild(b);
+    snodes.push(b);
   });
+  if (selStep && !r.includes(selStep)) selStep = null;
+  fillAround(list, snodes, $("#stepEditor"), edit && selStep ? r.indexOf(selStep) : -1);
   renderTtsBox();
   $("#optTts").checked = tour.tts !== false; $("#optAuto").checked = tour.guideAuto !== false; $("#optStart").checked = !!tour.guideAutostart;
   $("#addStep").disabled = !cur;
@@ -2490,7 +2636,7 @@ function renderGuideSide() {
   $("#stAudioDelWrap").innerHTML = s.audio ? '<button class="btn small danger" id="stAudioDel">Opname weg</button>' : "";
   if (s.audio) $("#stAudioDel").onclick = () => { delete s.audio; save(); render(); };
   $("#stUp").disabled = idx === 0; $("#stDown").disabled = idx === r.length - 1;
-  $("#stDelWrap").innerHTML = '<button class="btn small danger" id="stDel">Verwijder</button>';
+  $("#stDelWrap").innerHTML = '<button class="btn ghost small danger" id="stDel">Stap verwijderen</button>';
   $("#stDel").onclick = () => confirmInline("#stDelWrap", "Stap verwijderen?", () => { tour.route = r.filter(x => x !== s); selStep = null; save(); render(); });
 }
 $("#addStep").onclick = () => {
@@ -2531,7 +2677,7 @@ function renderTtsBox() {
   const r = route(), box = $("#ttsBox"); box.hidden = !r.length; if (!r.length) return;
   $("#ttsVoiceSel").value = ttsVoiceId();
   const n = r.filter(needsTts).length, withText = r.filter(x => x.text && x.text.trim()).length;
-  $("#ttsState").textContent = n ? `${n} ${n === 1 ? "stap heeft" : "stappen hebben"} nog geen audio. Laat de uitleg inspreken door een Vlaamse computerstem: die audio werkt overal, ook op de Quest (die zelf niet kan voorlezen). De eerste keer wordt de stem gedownload (± 65 MB).`
+  $("#ttsState").textContent = n ? `${n} ${n === 1 ? "stap heeft" : "stappen hebben"} nog geen audio. Laat de uitleg inspreken door een Vlaamse computerstem: die audio werkt overal, ook op de VR-bril (die zelf niet kan voorlezen). De eerste keer wordt de stem gedownload (± 65 MB).`
     : withText ? "Alle stappen met tekst hebben audio ✓" : "Typ eerst de uitleg bij de stappen.";
   $("#ttsMake").disabled = !n;
 }
@@ -2811,7 +2957,7 @@ async function sendToQuest() {
   if (!tour || !tour.scenes.length) { toast("Er is nog niets om te sturen. Voeg eerst inhoud toe."); return; }
   stopQuestSession(true);
   const b = $("#cardBody");
-  b.innerHTML = `<h3>Open op de Quest</h3><div class="bar"><i id="barFill" style="width:30%"></i></div><p class="hint" id="barText">Verbinding klaarzetten…</p>`;
+  b.innerHTML = `<h3>Open op de VR-bril</h3><div class="bar"><i id="barFill" style="width:30%"></i></div><p class="hint" id="barText">Verbinding klaarzetten…</p>`;
   $("#card").dataset.busy = "1"; $("#card").hidden = false;
   try {
     await saveNow();
@@ -2834,16 +2980,16 @@ async function sendToQuest() {
     showQuestCard();
   } catch (err) {
     console.error(err); stopQuestSession(true);
-    b.innerHTML = `<h3>Open op de Quest</h3><p></p><p class="hint">Tips: zet de laptop en de Quest op hetzelfde wifi-netwerk. Blokkeert het schoolnetwerk de verbinding, gebruik dan de hotspot van een gsm, of exporteer de tour en open hem via de VR-viewer starter.</p><div class="row"><button class="btn">Sluiten</button></div>`;
+    b.innerHTML = `<h3>Open op de VR-bril</h3><p></p><p class="hint">Tips: zet de laptop en de VR-bril op hetzelfde wifi-netwerk. Blokkeert het schoolnetwerk de verbinding, gebruik dan de hotspot van een gsm, of exporteer de tour en open hem via de VR-viewer starter.</p><div class="row"><button class="btn">Sluiten</button></div>`;
     b.querySelector("p").textContent = "De verbinding kon niet klaargezet worden: " + (err?.message || err?.type || err) + ".";
     b.querySelector("button").onclick = closeCard; $("#card").dataset.busy = "1"; $("#card").hidden = false;
   }
 }
 function showQuestCard() {
   const S = qSession, b = $("#cardBody"); if (!S) return;
-  b.innerHTML = `<h3>Open op de Quest</h3>
-    <div class="qrwrap"><div class="qr"><img alt="QR-code om deze tour op de Quest te openen"></div>
-      <div class="qrtext"><p><b>Scan</b> deze QR-code met de Quest.</p><p>Of open op de Quest <span class="url"></span> en typ de code:</p><div class="qcode"></div></div></div>
+  b.innerHTML = `<h3>Open op de VR-bril</h3>
+    <div class="qrwrap"><div class="qr"><img alt="QR-code om deze tour op de VR-bril te openen"></div>
+      <div class="qrtext"><p><b>Scan</b> deze QR-code met de VR-bril.</p><p>Of open op de VR-bril <span class="url"></span> en typ de code:</p><div class="qcode"></div></div></div>
     <label class="samenchk"><input type="checkbox" id="qSamen"><span><b>Samen-les</b>: de brillen blijven verbonden en volgen jou live. Ze gaan mee naar jouw standpunt, positie en stap van de rondleiding, en zien de icoontjes die jij opent. Studenten kijken zelf vrij rond. Jij geeft de uitleg.</span></label>
     <p class="hint">De tour wordt naar de bril gestuurd en blijft daar bewaard. Heeft een bril deze versie al, dan wordt ze niet opnieuw verstuurd. Meerdere brillen tegelijk kan.</p>
     <p class="hint" id="qAudioWarn" hidden></p>
@@ -2852,7 +2998,7 @@ function showQuestCard() {
   b.querySelector(".qr img").src = S.qr;
   b.querySelector(".url").textContent = location.host + location.pathname + "?quest";
   b.querySelector(".qcode").textContent = fmtCode(S.code);
-  { const n = route().filter(needsTts).length, w = $("#qAudioWarn"); if (n && !S.samen) { w.hidden = false; w.textContent = `Let op: ${n} ${n === 1 ? "stap" : "stappen"} van de rondleiding ${n === 1 ? "heeft" : "hebben"} nog geen audio. De Quest kan zelf niet voorlezen. Klik eerst bij Rondleiding (in Bewerken) op ‘🔊 Maak audio’ en stuur de tour daarna.`; } }
+  { const n = route().filter(needsTts).length, w = $("#qAudioWarn"); if (n && !S.samen) { w.hidden = false; w.textContent = `Let op: ${n} ${n === 1 ? "stap" : "stappen"} van de rondleiding ${n === 1 ? "heeft" : "hebben"} nog geen audio. De VR-bril kan zelf niet voorlezen. Klik eerst bij Rondleiding (in Bewerken) op ‘🔊 Maak audio’ en stuur de tour daarna.`; } }
   $("#qSamen").checked = !!S.samen;
   $("#qSamen").onchange = e => { setSamenTeacher(e.target.checked); $("#qStop").textContent = e.target.checked ? "Start de les" : "Klaar"; };
   $("#qStop").textContent = S.samen ? "Terug naar de les" : "Klaar";
@@ -2987,7 +3133,7 @@ async function receiveFromLaptop(raw) {
   $("#qCodeIn").value = fmtCode(code);
   questStatus(`Verbinden met de laptop (code ${fmtCode(code)})…`, 0.02);
   let peer = null;
-  const myName = (() => { try { return localStorage.getItem("werftour-name") || ""; } catch (e) { return ""; } })() || "Quest " + Math.random().toString(36).slice(2, 5).toUpperCase();
+  const myName = (() => { try { return localStorage.getItem("werftour-name") || ""; } catch (e) { return ""; } })() || "VR-bril " + Math.random().toString(36).slice(2, 5).toUpperCase();
   try {
     const Peer = await loadPeer();
     peer = await openPeer(Peer);
@@ -2995,7 +3141,7 @@ async function receiveFromLaptop(raw) {
     const res = await new Promise((ok, no) => {
       let head = null, buf = null, got = 0, vi = -1, vgot = 0, recv = 0, total = 1, done = false, last = 0;
       const vids = [];
-      const to = setTimeout(() => no(new Error("de laptop antwoordt niet. Staat het venster ‘Open op de Quest’ nog open?")), 25000);
+      const to = setTimeout(() => no(new Error("de laptop antwoordt niet. Staat het venster ‘Open op de VR-bril’ nog open?")), 25000);
       peer.on("error", e => { clearTimeout(to); if (!done) no(new Error(e?.type === "peer-unavailable" ? "deze code is niet (meer) actief. Kijk de code op de laptop na." : (e?.message || e?.type || "verbindingsfout"))); });
       conn.on("open", () => { clearTimeout(to); conn.send(JSON.stringify({ t: "hello", name: myName })); questStatus("Verbonden, de tour komt binnen…", 0.03); });
       conn.on("data", d => {
@@ -3057,7 +3203,7 @@ async function receiveFromLaptop(raw) {
     if (samen.on) { toast("Samen-les: je volgt de docent."); if (samen.last) samenApply(samen.last, true); }
   } catch (err) {
     console.error(err); try { peer?.destroy(); } catch (e) {}
-    questStatus("Dat lukte niet: " + (err?.message || err) + " Tip: zet de Quest en de laptop op hetzelfde wifi-netwerk.", 0, true);
+    questStatus("Dat lukte niet: " + (err?.message || err) + " Tip: zet de VR-bril en de laptop op hetzelfde wifi-netwerk.", 0, true);
   }
 }
 $("#qGo").onclick = () => receiveFromLaptop($("#qCodeIn").value);
