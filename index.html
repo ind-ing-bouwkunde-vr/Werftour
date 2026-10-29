@@ -344,7 +344,7 @@ input[type=file]{display:none}
       </div>
       <div class="tools">
         <button class="btn" id="questBtn" title="Stuur deze tour naar een VR-bril met een QR-code">Naar VR-bril</button>
-        <button class="btn" id="vrBtn">VR-bril</button>
+        <button class="btn" id="vrBtn" hidden title="Start de VR-weergave (alleen in de browser van een VR-bril)">Start VR</button>
         <button class="btn" id="exportBtn" data-edit title="Eén bestand voor de VR-bril én je back-up">Exporteren</button>
       </div>
     </div>
@@ -1659,7 +1659,7 @@ const LEESMIJ = `Werftour – 360°-video
 
 1. Pak deze zip volledig uit. De map 'videos' moet naast index.html blijven staan.
 2. Dubbelklikken op index.html werkt niet voor video: de browser blokkeert dat. Open de map via een webserver, bijvoorbeeld de start_server van de VR-viewer starter, of zet de map op GitHub Pages.
-3. Op de VR-bril: open de link in de browser en tik op 'VR-bril'.
+3. Op de VR-bril: open de link in de browser en tik op 'Start VR'.
 4. Verder bewerken: open Werftour, kies op het startscherm 'Bestand openen…' en selecteer deze zip.
 `;
 async function exportTour() {
@@ -2079,11 +2079,13 @@ async function enterVR() {
 }
 function showHelp(msg) {
   const body = $("#cardBody");
-  body.innerHTML = `<h3>VR op de VR-bril</h3><p>VR start alleen in de browser van een VR-bril, op een pagina via https of localhost.</p><p>1. Klik in Bewerken op <b>Exporteren</b>. Je krijgt één HTML-bestand met alles erin.\n2. Zet dat bestand in de map van de VR-viewer starter en scan de QR-code met de VR-bril.\n3. Open de tour en tik op <b>VR-bril</b>.\n\nIn VR: richt de straal en druk op de trigger om een icoontje te openen. In een BIM-model stap je met de linker stick en draai je met de rechter stick.</p><p class="hint"></p><div class="row"><button class="btn">Sluiten</button></div>`;
+  body.innerHTML = `<h3>VR starten in de bril</h3><p>VR start alleen in de browser van een VR-bril, op een pagina via https of localhost.</p><p>1. Klik in Bewerken op <b>Exporteren</b>. Je krijgt één HTML-bestand met alles erin.\n2. Zet dat bestand in de map van de VR-viewer starter en scan de QR-code met de VR-bril.\n3. Open de tour en tik op <b>Start VR</b>.\n\nIn VR: richt de straal en druk op de trigger om een icoontje te openen. In een BIM-model stap je met de linker stick en draai je met de rechter stick.</p><p class="hint"></p><div class="row"><button class="btn">Sluiten</button></div>`;
   body.querySelector(".hint").textContent = msg ? "Melding van de browser: " + msg : "Deze browser of dit venster ondersteunt geen WebXR.";
   body.querySelector("button").onclick = closeCard; $("#card").hidden = false;
 }
 $("#vrBtn").onclick = enterVR;
+/* only show "Start VR" where VR can actually start (in a headset's browser); on a laptop it would do nothing */
+(async () => { const ok = !!navigator.xr && await navigator.xr.isSessionSupported("immersive-vr").catch(() => false); $("#vrBtn").hidden = !ok; })();
 
 /* ---------- shared audio recorder ---------- */
 let rec = null;
