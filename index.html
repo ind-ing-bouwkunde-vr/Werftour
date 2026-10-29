@@ -141,6 +141,20 @@ label.chk{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--fg)
 .ti{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:var(--f-display);font-weight:700;font-size:13px}
 .prev{border-radius:var(--r);max-height:140px;object-fit:contain;align-self:flex-start}
 .rec{color:var(--bad);font-weight:600}
+/* edit mode: the side panel follows the order of making a tour */
+aside.flow #scenesSec{order:1} aside.flow #sceneProps{order:2} aside.flow #hsSec{order:3} aside.flow #hsEditor{order:4}
+aside.flow #guideSec{order:5} aside.flow #stepEditor{order:6} aside.flow #finishSec{order:7} aside.flow .foot{order:99}
+aside.flow #startSec{display:none}
+.sh{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.sn{display:none}
+aside.flow .sec:not(.sub){border-bottom:0;border-top:1px solid var(--line)}
+aside.flow #scenesSec{border-top:0}
+aside.flow .sec:not(.sub) > h2{color:var(--fg);font-size:13px}
+aside.flow .sn{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--line);color:var(--fg);font-family:var(--f-mono);font-size:11px;letter-spacing:0;flex:none}
+aside.flow .sn.next{background:var(--accent);color:var(--accent-fg)}
+aside.flow .sn.done{background:var(--ok);color:#fff}
+aside.flow .sec.later > :not(h2){opacity:.6}
+aside.flow .sec.sub{margin:-4px 12px 12px;padding:12px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:var(--r);background:var(--bg)}
 .foot{margin-top:auto;padding:12px 16px;font-size:11px;color:var(--muted);line-height:1.5;display:flex;flex-direction:column;gap:4px}
 
 /* stage */
@@ -366,25 +380,22 @@ input[type=file]{display:none}
         <ol class="checklist" id="checklist"></ol>
       </section>
       <section class="sec" id="guideSec">
-        <h2><span id="guideHead">Rondleiding</span> <span class="coord" id="stepCount"></span></h2>
+        <h2><span class="sh"><span class="sn" id="snGuide"></span><span id="guideHead">Rondleiding</span></span> <span class="coord" id="stepCount"></span></h2>
         <button class="btn primary" id="guideStartBtn">▶ Start de rondleiding</button>
         <p class="hint" id="guideHint"></p>
         <div class="hs-list" id="stepList"></div>
-        <div class="col" data-edit>
+        <div class="col" data-edit id="guideTools">
           <button class="btn small" id="addStep">+ Huidig beeld als stap</button>
           <div class="ttsbox" id="ttsBox"><b>Uitleg laten inspreken</b><p class="hint" id="ttsState"></p>
             <div class="row"><select id="ttsVoiceSel" aria-label="Stem"><option value="nl_BE-nathalie-medium">Nathalie (Vlaams)</option><option value="nl_BE-rdh-medium">Rdh (Vlaams)</option></select><button class="btn small primary" id="ttsMake">🔊 Maak audio</button></div></div>
-          <label class="chk"><input type="checkbox" id="optTts"> Tekst voorlezen als er geen opname is</label>
-          <label class="chk"><input type="checkbox" id="optAuto"> Automatisch naar de volgende stap</label>
-          <label class="chk"><input type="checkbox" id="optStart"> Rondleiding aanbieden bij het openen</label>
         </div>
       </section>
       <section class="sec" id="scenesSec">
-        <h2><span id="scenesHead">Standpunten</span> <span class="coord" id="sceneCount"></span></h2>
+        <h2><span class="sh"><span class="sn" id="snScenes"></span><span id="scenesHead">Standpunten</span></span> <span class="coord" id="sceneCount"></span></h2>
         <div class="scenes" id="sceneList"></div>
         <div class="row" data-edit id="addRow"></div>
       </section>
-      <section class="sec" id="sceneProps" data-edit hidden>
+      <section class="sec sub" id="sceneProps" data-edit hidden>
         <h2 id="propsHead">Dit standpunt</h2>
         <label class="f">Naam<input id="sceneName"></label>
         <label class="f">Korte uitleg<textarea id="sceneDesc" rows="2"></textarea></label>
@@ -397,11 +408,11 @@ input[type=file]{display:none}
         </div>
       </section>
       <section class="sec" id="hsSec">
-        <h2>Icoontjes <span class="coord" id="hsCount"></span></h2>
+        <h2><span class="sh"><span class="sn" id="snHs"></span><span id="hsHead">Icoontjes</span></span> <span class="coord" id="hsCount"></span></h2>
         <p class="hint" id="hsHint"></p>
         <div class="hs-list" id="hsList"></div>
       </section>
-      <section class="sec" id="hsEditor" hidden>
+      <section class="sec sub" id="hsEditor" hidden>
         <h2>Icoontje bewerken <span class="coord" id="hsCoord"></span></h2>
         <div class="typegrid" id="typeGrid"></div>
         <label class="f">Titel<input id="hsTitle"></label>
@@ -427,7 +438,7 @@ input[type=file]{display:none}
         <div id="fWeb" class="col"><label class="f">Webadres<input id="hsUrl" type="url" placeholder="https://"></label></div>
         <div class="row"><button class="btn small" id="hsMove">Verplaats</button><span id="delHsWrap"></span></div>
       </section>
-      <section class="sec" id="stepEditor" hidden>
+      <section class="sec sub" id="stepEditor" hidden>
         <h2>Stap bewerken <span class="coord" id="stepNo"></span></h2>
         <label class="f">Titel<input id="stTitle"></label>
         <label class="f">Gesproken tekst (ook ondertitel)<textarea id="stText" rows="4"></textarea></label>
@@ -436,6 +447,16 @@ input[type=file]{display:none}
         <p class="hint" id="stAudioState"></p>
         <div class="row"><button class="btn small" id="stRec">● Opnemen</button><button class="btn small" id="stAudioBtn">Audiobestand kiezen</button><button class="btn small" id="stTts">🔊 Inspreken met stem</button><button class="btn small" id="stListen">▶ Beluister</button><span id="stAudioDelWrap"></span><input type="file" id="stAudioFile" accept="audio/*"></div>
         <div class="row"><button class="btn small" id="stRecapture">Huidig beeld gebruiken</button><button class="btn small" id="stUp" aria-label="Stap omhoog">↑</button><button class="btn small" id="stDown" aria-label="Stap omlaag">↓</button><button class="btn small" id="stPreview">Bekijk deze stap</button><span id="stDelWrap"></span></div>
+      </section>
+      <section class="sec" id="finishSec" data-edit hidden>
+        <h2><span class="sh"><span class="sn" id="snFinish"></span><span>Afwerken</span></span></h2>
+        <div class="col" id="guideOpts">
+          <label class="chk"><input type="checkbox" id="optStart"> Rondleiding aanbieden bij het openen</label>
+          <label class="chk"><input type="checkbox" id="optAuto"> Automatisch naar de volgende stap</label>
+          <label class="chk"><input type="checkbox" id="optTts"> Tekst voorlezen als er geen opname is</label>
+        </div>
+        <button class="btn primary" id="finishExport">Exporteren voor de Quest</button>
+        <p class="hint" id="finishHint"></p>
       </section>
       <div class="foot"><span id="projSize"></span><span id="credits" hidden>Demobeelden: Poly Haven (CC0), via de three.js-voorbeelden. Demomodel: IFC-testbestand van web-ifc (That Open Company).</span></div>
     </aside>
@@ -1095,6 +1116,7 @@ function renderStart() {
     ["Maak de rondleiding: ‘Huidig beeld als stap’", route().length > 0],
     ["Exporteer voor de Quest en als back-up", !!tour.lastExport]
   ];
+  renderFlow(edit);
   const all = items.every(i => i[1]);
   sec.hidden = !edit || all || !!tour.hideStart;
   if (sec.hidden) return;
@@ -1109,6 +1131,28 @@ function renderStart() {
     ol.appendChild(li);
   });
 }
+/* edit mode: the side panel is a numbered step-by-step flow */
+function renderFlow(edit) {
+  $("#side").classList.toggle("flow", edit);
+  if (!edit) return;
+  const steps = [["#snScenes", tour.scenes.length > 0], ["#snHs", tour.scenes.some(s => s.hotspots.length)]];
+  if (!isVid()) steps.push(["#snGuide", route().length > 0, isBim()]);
+  steps.push(["#snFinish", !!tour.lastExport]);
+  let next = false;
+  steps.forEach(([id, done, optional], i) => {
+    const el = $(id); el.textContent = done ? "✓" : i + 1;
+    const isNext = !done && !optional && !next; if (isNext) next = true;
+    el.className = "sn" + (done ? " done" : isNext ? " next" : "");
+    el.closest(".sec").classList.toggle("later", !done && !isNext && !optional && i > 0 && !steps[i - 1][1]);
+  });
+  $("#snGuide").closest(".sec").classList.toggle("later", !isVid() && !tour.scenes.length);
+  $("#finishSec").classList.toggle("later", !tour.scenes.length);
+  $("#finishExport").disabled = !tour.scenes.length;
+  $("#finishHint").textContent = tour.lastExport
+    ? "Geëxporteerd. Exporteer opnieuw na elke wijziging. Het bestand is ook je back-up."
+    : "Eén bestand voor de Quest én je back-up. Exporteer opnieuw na elke wijziging.";
+}
+$("#finishExport").onclick = () => $("#exportBtn").click();
 $("#hideStart").onclick = () => { tour.hideStart = true; save(); render(); };
 function renderEmpty() {
   const el = $("#empty");
@@ -1161,8 +1205,14 @@ function renderSide() {
   }
   if (!tour.scenes.length) list.innerHTML = `<p class="hint">${isBim() ? "Nog geen model geladen." : isVid() ? "Nog geen video toegevoegd." : "Nog geen foto's toegevoegd."}</p>`;
   $("#sceneProps").hidden = !edit || !cur;
-  $("#hsSec").hidden = !cur;
-  if (!cur) { $("#hsEditor").hidden = true; return; }
+  $("#hsSec").hidden = !cur && !edit;
+  $("#hsHead").textContent = cur && edit && tour.scenes.length > 1 ? `Icoontjes · ${cur.name}` : "Icoontjes";
+  if (!cur) {
+    $("#hsEditor").hidden = true;
+    $("#hsCount").textContent = ""; $("#hsList").innerHTML = "";
+    $("#hsHint").textContent = isBim() ? "Laad eerst een model in stap 1." : isVid() ? "Voeg eerst een video toe in stap 1." : "Voeg eerst 360°-foto's toe in stap 1.";
+    return;
+  }
   $("#propsHead").textContent = M ? "Dit model" : isVideo(cur) ? "Dit deel" : "Dit standpunt";
   if (document.activeElement !== $("#sceneName")) $("#sceneName").value = cur.name || "";
   if (document.activeElement !== $("#sceneDesc")) $("#sceneDesc").value = cur.description || "";
@@ -2451,12 +2501,15 @@ const stepLabel = s => scene(s.scene)?.name || "?";
 function renderGuideSide() {
   if (!tour) return;
   const r = route(), edit = mode === "edit" && !viewerOnly;
-  $("#guideSec").hidden = (!edit && !r.length) || (edit && !tour.scenes.length) || isVid();
+  $("#guideSec").hidden = (!edit && !r.length) || isVid();
+  $("#guideTools").hidden = !edit || !tour.scenes.length;
+  $("#guideOpts").hidden = isVid();
   $("#guideHead").textContent = isBim() ? "Rondleiding (optioneel)" : "Rondleiding";
   $("#stepCount").textContent = r.length ? r.length + (r.length === 1 ? " stap" : " stappen") : "";
   $("#guideStartBtn").hidden = !r.length || guide.on || edit;
   $("#guideHint").textContent = r.length
     ? (edit ? "Klik op een stap om ze te bewerken. Een stap onthoudt het standpunt en de kijkrichting." : "Een begeleide tocht met gesproken uitleg.")
+    : !tour.scenes.length ? (isBim() ? "Laad eerst een model in stap 1." : "Voeg eerst 360°-foto's toe in stap 1. Daarna maak je hier de begeleide tocht.")
     : (isBim() ? "Optioneel: leid de kijker langs vaste plekken in het model. Ga naar een plek en klik op ‘Huidig beeld als stap’." : "Ga naar een standpunt, draai naar wat je wil tonen en klik op ‘Huidig beeld als stap’.");
   const list = $("#stepList"); list.innerHTML = "";
   r.forEach((s, i) => {
