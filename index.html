@@ -1893,6 +1893,7 @@ async function migrateOld() {
 
 /* ---------- VR (WebXR) ---------- */
 const xrGroup = new THREE.Group(); world.add(xrGroup);
+let xrHoverSprite = null;   /* the icon you point at in VR, shown a bit bigger */
 function labelTexture(h) {
   const t = TYPES[h.type] || TYPES.info;
   const c = document.createElement("canvas"); c.width = 512; c.height = 160; const g = c.getContext("2d");
@@ -1912,8 +1913,9 @@ function buildXRMarkers() {
     s.center.set(80 / 512, 0.5);
     if (h.pos) { s.position.fromArray(h.pos); s.scale.set(0.96, 0.3, 1); }
     else { s.position.copy(dirFrom(h.yaw, h.pitch).multiplyScalar(5)); s.scale.set(1.6, 0.5, 1); }
-    s.userData.h = h; s.renderOrder = 2; xrGroup.add(s);
+    s.userData.h = h; s.userData.base = s.scale.clone(); s.renderOrder = 2; xrGroup.add(s);
   }
+  xrHoverSprite = null;
 }
 let xrCard = null;
 function placeInFront(mesh, dist = 1.6) {
@@ -2010,10 +2012,9 @@ const controllers = [0, 1].map(i => {
     ray.ray.origin.setFromMatrixPosition(c.matrixWorld); ray.ray.direction.set(0, 0, -1).applyMatrix4(m); ray.far = Infinity;
     if (c.userData.handHit) { xrHandPress(c.userData.handHit); return; }
     if (xrHand && xrHand.visible && !(xrHand.userData.onHand && c.userData.hand === "left")) { const hh = ray.intersectObject(xrHand, false)[0]; if (hh) { xrHandPress(hh.uv); return; } }
-    if (xrVPanel) { const vh = ray.intersectObject(xrVPanel, false)[0]; if (vh) { xrVideoPress(vh.uv); return; } }
     if (xrCard && xrCard.userData.press) { const ch = ray.intersectObject(xrCard, false)[0]; if (ch) xrCard.userData.press(ch.uv); return; }
     if (xrCard) { closeCard(); hideBim(); return; }
-    const hit = ray.intersectObjects(xrGroup.children)[0]; if (hit) { activate(hit.object.userData.h); return; }
+    const hit = ray.intersectObjects(xrGroup.children.filter(sp => sp.visible), false)[0]; if (hit) { activate(hit.object.userData.h); return; }
     if (M) { const mh = ray.intersectObjects(M.meshes, false)[0]; if (mh) showBim(mh); }
   });
   return c;
@@ -2221,41 +2222,12 @@ $("#vBack").onclick = () => { vid.currentTime = Math.max(0, vid.currentTime - 10
 $("#vMute").onclick = () => { vid.muted = !vid.muted; renderVbar(); };
 $("#vNext").onclick = () => { const i = tour.scenes.indexOf(cur), next = tour.scenes.slice(i + 1).find(isVideo); if (next) go(next.id).then(playVideo); };
 
-/* video controls in VR: a small panel that follows your gaze lazily */
-let xrVPanel = null, xrVCanvas = null, xrVTex = null, xrVLast = 0, xrVDir = null;
-function updateXRVideoPanel(now) {
-  const want = renderer.xr.isPresenting && isVideo(cur) && screen === "app";
-  if (!want) { if (xrVPanel) { world.remove(xrVPanel); xrVTex.dispose(); xrVPanel = null; xrVDir = null; } return; }
-  if (!xrVPanel) {
-    xrVCanvas = document.createElement("canvas"); xrVCanvas.width = 1024; xrVCanvas.height = 160;
-    xrVTex = new THREE.CanvasTexture(xrVCanvas); xrVTex.colorSpace = THREE.SRGBColorSpace;
-    xrVPanel = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.1875), new THREE.MeshBasicMaterial({ map: xrVTex, transparent: true, depthTest: false }));
-    xrVPanel.renderOrder = 4; world.add(xrVPanel); xrVLast = 0;
-  }
-  if (now - xrVLast < 300) return; xrVLast = now;
-  const cam = renderer.xr.getCamera(), head = new THREE.Vector3().setFromMatrixPosition(cam.matrixWorld);
-  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.getWorldQuaternion(new THREE.Quaternion())); fwd.y = 0; fwd.normalize();
-  if (!xrVDir || xrVDir.angleTo(fwd) > deg(55)) xrVDir = fwd.clone();
-  xrVPanel.position.copy(head).addScaledVector(xrVDir, 1.3); xrVPanel.position.y = head.y - 0.55;
-  xrVPanel.lookAt(head.x, head.y - 0.3, head.z);
-  const g = xrVCanvas.getContext("2d"), d = vid.duration || cur.duration || 1, t = vid.currentTime;
-  g.clearRect(0, 0, 1024, 160); g.fillStyle = "rgba(12,16,19,.92)"; g.fillRect(0, 0, 1024, 160);
-  g.fillStyle = "rgba(255,255,255,.14)"; g.fillRect(8, 20, 184, 120); g.fillRect(208, 20, 184, 120);
-  const nxt = tour.scenes.slice(tour.scenes.indexOf(cur) + 1).find(isVideo); if (nxt) g.fillRect(832, 20, 184, 120);
-  g.fillStyle = "#fff"; g.font = "600 40px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillText("↺ 10 s", 100, 80); g.fillText(vid.paused ? "▶" : "❚❚", 300, 80); if (nxt) g.fillText("Deel ▶", 924, 80);
-  g.fillStyle = "rgba(255,255,255,.25)"; g.fillRect(420, 74, 384, 12); g.fillStyle = "#f07a2a"; g.fillRect(420, 74, 384 * clamp(t / d, 0, 1), 12);
-  for (const h of cur.hotspots) if (h.t0 != null) { g.fillStyle = (TYPES[h.type] || TYPES.info).color; g.beginPath(); g.arc(420 + 384 * clamp(h.t0 / d, 0, 1), 80, 9, 0, 7); g.fill(); }
-  g.fillStyle = "#d9e1e6"; g.font = "28px monospace"; g.fillText(`${fmtT(t)} / ${fmtT(d)}`, 612, 125);
-  xrVTex.needsUpdate = true;
-}
-function xrVideoPress(uv) {
-  const x = uv.x * 1024;
-  if (x < 200) vid.currentTime = Math.max(0, vid.currentTime - 10);
-  else if (x < 400) (vid.paused ? playVideo() : vid.pause());
-  else if (x > 824) $("#vNext").click();
-  else vid.currentTime = clamp((x - 420) / 384, 0, 1) * (vid.duration || 0);
-  xrVLast = 0;
+/* video controls in VR live on the hand panel (left controller); redraw it when the time, play state or sound changes */
+let xrVKey = "";
+function updateXRVideoPanel() {
+  if (!renderer.xr.isPresenting || !isVideo(cur) || screen !== "app" || !xrHand || !xrHand.visible) { xrVKey = ""; return; }
+  const k = Math.floor(vid.currentTime) + "|" + vid.paused + "|" + vid.muted + "|" + cur.id;
+  if (k !== xrVKey) { xrVKey = k; drawHand(); }
 }
 
 /* ---------- guided tour (rondleiding) ---------- */
@@ -2521,6 +2493,35 @@ function drawHand() {
     B(688, 910, 296, 92, guide.i === r.length - 1 ? "Afronden ✓" : "Volgende ▶", () => nextStep(), "primary", led);
     if (led) B(40, 1022, 944, 70, "Zelf rondlopen (niet meer volgen)", () => setFollow(false));
     else B(40, 1022, 944, 70, "■ Stop de rondleiding", () => { stopGuide(); xrHandMsg = "Rondleiding gestopt. Kijk zelf verder rond: richt op een icoontje en druk op de trigger."; drawHand(); });
+  } else if (isVideo(cur)) {
+    xrHandStep = -1;
+    const led = samen.on && samen.follow;
+    g.font = "34px sans-serif"; g.fillStyle = "rgba(255,255,255,.92)";
+    const msg = xrHandMsg || (samen.on ? (led ? "Samen-les: de docent leidt en bedient de video. Kijk vrij rond." : "Samen-les: je kijkt nu zelf. Druk op 'Volg de docent' om weer mee te gaan.") : "Kijk rond in de video. Richt op een icoontje en druk op de trigger.");
+    wrapLines(g, msg, 944).slice(0, 3).forEach((l, i) => g.fillText(l, 40, 180 + i * 46));
+    if (samen.on) B(40, 330, 944, 90, led ? "Zelf bedienen" : "▶ Volg de docent", () => setFollow(!samen.follow), led ? "" : "primary");
+    const vids = tour.scenes.filter(isVideo), vi = vids.indexOf(cur), nxt = vids[vi + 1];
+    g.fillStyle = "rgba(255,255,255,.6)"; g.font = "600 28px sans-serif";
+    g.fillText(fitText(g, (vids.length > 1 ? `DEEL ${vi + 1} VAN ${vids.length} · ` : "") + (cur.name || ""), 944), 40, 500);
+    if (led) {
+      g.fillStyle = "rgba(255,255,255,.5)"; g.font = "32px sans-serif"; g.fillText("De docent bedient de video.", 40, 580);
+    } else {
+      const d = vid.duration || cur.duration || 1, t = vid.currentTime, f = clamp(t / d, 0, 1);
+      const SX = 40, SY = 530, SW = 944, SH = 84, ty = SY + SH / 2;
+      const hovSeek = xrHandHover && xrHandHover.x >= SX && xrHandHover.x <= SX + SW && xrHandHover.y >= SY && xrHandHover.y <= SY + SH;
+      if (hovSeek) { g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 4; g.beginPath(); g.roundRect(SX - 6, SY - 6, SW + 12, SH + 12, 20); g.stroke(); }
+      g.fillStyle = "rgba(255,255,255,.22)"; g.beginPath(); g.roundRect(SX + 16, ty - 9, SW - 32, 18, 9); g.fill();
+      g.fillStyle = "#f07a2a"; g.beginPath(); g.roundRect(SX + 16, ty - 9, Math.max(18, (SW - 32) * f), 18, 9); g.fill();
+      for (const h of cur.hotspots) if (h.t0 != null) { g.fillStyle = (TYPES[h.type] || TYPES.info).color; g.beginPath(); g.arc(SX + 16 + (SW - 32) * clamp(h.t0 / d, 0, 1), ty, 11, 0, 7); g.fill(); }
+      g.fillStyle = "#fff"; g.beginPath(); g.arc(SX + 16 + (SW - 32) * f, ty, 18, 0, 7); g.fill();
+      btns.push({ x: SX, y: SY, w: SW, h: SH, fn: fx => { vid.currentTime = clamp((fx * SW - 16) / (SW - 32), 0, 1) * (vid.duration || 0); drawHand(); } });
+      g.fillStyle = "#d9e1e6"; g.font = "32px monospace"; g.textAlign = "center"; g.fillText(`${fmtT(t)} / ${fmtT(d)}`, 512, 662); g.textAlign = "left";
+      B(40, 700, 296, 110, "↺ 10 s", () => { vid.currentTime = Math.max(0, vid.currentTime - 10); drawHand(); });
+      B(364, 700, 296, 110, vid.paused ? "▶ Afspelen" : "❚❚ Pauze", () => { vid.paused ? playVideo() : vid.pause(); setTimeout(drawHand, 50); }, "primary");
+      B(688, 700, 296, 110, "10 s ↻", () => { vid.currentTime = Math.min(vid.duration || 0, vid.currentTime + 10); drawHand(); });
+      B(40, 838, 460, 80, vid.muted ? "Geluid: uit" : "Geluid: aan", () => { vid.muted = !vid.muted; renderVbar(); drawHand(); });
+      B(524, 838, 460, 80, "Volgend deel ▶", () => $("#vNext").click(), "", !nxt);
+    }
   } else {
     xrHandStep = -1;
     g.font = "34px sans-serif"; g.fillStyle = "rgba(255,255,255,.92)";
@@ -2535,33 +2536,44 @@ function drawHand() {
   xrHandBtns = btns; xrHandTex.needsUpdate = true;
 }
 /* every frame: point at the hand screen with the other controller (cursor + highlight), or tap it with the controller tip */
-const handCursor = new THREE.Mesh(new THREE.SphereGeometry(0.007, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false }));
-handCursor.renderOrder = 8; handCursor.visible = false; world.add(handCursor);
-const hRay = new THREE.Raycaster(), hMat = new THREE.Matrix4(), hPos = new THREE.Vector3();
+const mkCursor = () => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.007, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false })); m.renderOrder = 8; m.visible = false; world.add(m); return m; };
+const cursors = [mkCursor(), mkCursor()];
+const hRay = new THREE.Raycaster(), hMat = new THREE.Matrix4(), hPos = new THREE.Vector3(); hRay.firstHitOnly = true;
+function setCursor(i, c, hit) {
+  const cu = cursors[i]; cu.position.copy(hit.point); cu.scale.setScalar(Math.max(1, hit.distance / 0.6)); cu.visible = true;
+  const line = c.children[0]; if (line) line.scale.z = Math.max(0.01, hit.distance / 8);
+}
 function updateHandPointer() {
-  handCursor.visible = false; let hover = null;
-  for (const c of controllers) {
-    c.userData.handHit = null;
+  let hover = null, cardUv = null, sprite = null;
+  hRay.camera = renderer.xr.getCamera();
+  controllers.forEach((c, i) => {
+    cursors[i].visible = false; c.userData.handHit = null;
     const line = c.children[0]; if (line) line.scale.z = 1;
-    if (!xrHand || !xrHand.visible || (xrHand.userData.onHand && c.userData.hand === "left")) { c.userData.poked = false; continue; }
-    xrHand.updateMatrixWorld(true);
-    hMat.extractRotation(c.matrixWorld); hRay.ray.origin.setFromMatrixPosition(c.matrixWorld); hRay.ray.direction.set(0, 0, -1).applyMatrix4(hMat);
-    const h = hRay.intersectObject(xrHand, false)[0];
-    if (h) { c.userData.handHit = h.uv.clone(); handCursor.position.copy(h.point); handCursor.visible = true; if (line) line.scale.z = Math.max(0.01, h.distance / 8); hover = { x: h.uv.x * HW, y: (1 - h.uv.y) * HH }; }
-    const lp = xrHand.worldToLocal(hPos.setFromMatrixPosition(c.matrixWorld));
-    const hw = HAND_W / 2, hh = HAND_W * HH / HW / 2, inside = Math.abs(lp.x) < hw && Math.abs(lp.y) < hh;
-    if (inside && lp.z < 0.015 && lp.z > -0.03) { if (!c.userData.poked) { c.userData.poked = true; xrHandPress({ x: lp.x / (2 * hw) + 0.5, y: lp.y / (2 * hh) + 0.5 }); } }
-    else if (!inside || lp.z > 0.04) c.userData.poked = false;
-  }
-  if (xrCard && xrCard.userData.hover) {
-    let cu = null;
-    for (const c of controllers) {
-      if (c.userData.handHit || !c.visible) continue;
-      hMat.extractRotation(c.matrixWorld); hRay.ray.origin.setFromMatrixPosition(c.matrixWorld); hRay.ray.direction.set(0, 0, -1).applyMatrix4(hMat);
-      const ch = hRay.intersectObject(xrCard, false)[0];
-      if (ch) { cu = ch.uv; handCursor.position.copy(ch.point); handCursor.visible = true; const line = c.children[0]; if (line) line.scale.z = Math.max(0.01, ch.distance / 8); }
-    }
-    xrCard.userData.hover(cu);
+    hMat.extractRotation(c.matrixWorld); hRay.ray.origin.setFromMatrixPosition(c.matrixWorld); hRay.ray.direction.set(0, 0, -1).applyMatrix4(hMat); hRay.far = Infinity;
+    /* 1. the hand panel (not with the hand that holds it) */
+    if (xrHand && xrHand.visible && !(xrHand.userData.onHand && c.userData.hand === "left")) {
+      xrHand.updateMatrixWorld(true);
+      const h = hRay.intersectObject(xrHand, false)[0];
+      if (h) { c.userData.handHit = h.uv.clone(); setCursor(i, c, h); hover = { x: h.uv.x * HW, y: (1 - h.uv.y) * HH }; }
+      const lp = xrHand.worldToLocal(hPos.setFromMatrixPosition(c.matrixWorld));
+      const hw = HAND_W / 2, hh = HAND_W * HH / HW / 2, inside = Math.abs(lp.x) < hw && Math.abs(lp.y) < hh;
+      if (inside && lp.z < 0.015 && lp.z > -0.03) { if (!c.userData.poked) { c.userData.poked = true; xrHandPress({ x: lp.x / (2 * hw) + 0.5, y: lp.y / (2 * hh) + 0.5 }); } }
+      else if (!inside || lp.z > 0.04) c.userData.poked = false;
+    } else c.userData.poked = false;
+    if (c.userData.handHit) return;
+    /* 2. an open card (info, question, plan…) */
+    if (xrCard) { const ch = hRay.intersectObject(xrCard, false)[0]; if (ch) { setCursor(i, c, ch); if (xrCard.userData.hover) cardUv = ch.uv; } return; }
+    /* 3. an icon */
+    const sh = hRay.intersectObjects(xrGroup.children.filter(sp => sp.visible), false)[0];
+    if (sh) { setCursor(i, c, sh); sprite = sprite || sh.object; return; }
+    /* 4. the BIM model itself (walls, floors…) */
+    if (M) { const mh = hRay.intersectObjects(M.meshes, false)[0]; if (mh) setCursor(i, c, mh); }
+  });
+  if (xrCard && xrCard.userData.hover) xrCard.userData.hover(cardUv);
+  if (sprite !== xrHoverSprite) {
+    if (xrHoverSprite && xrHoverSprite.userData.base) xrHoverSprite.scale.copy(xrHoverSprite.userData.base);
+    xrHoverSprite = sprite;
+    if (sprite && sprite.userData.base) sprite.scale.copy(sprite.userData.base).multiplyScalar(1.2);
   }
   const b = hover && xrHandBtns.find(b => hover.x >= b.x && hover.x <= b.x + b.w && hover.y >= b.y && hover.y <= b.y + b.h);
   const key = b ? b.x + "," + b.y : "";
@@ -2569,7 +2581,7 @@ function updateHandPointer() {
 }
 function xrHandPress(uv) {
   const x = uv.x * HW, y = (1 - uv.y) * HH;
-  const b = xrHandBtns.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h); if (b) b.fn();
+  const b = xrHandBtns.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h); if (b) b.fn((x - b.x) / b.w);
 }
 /* the old names stay, so the rest of the app keeps working */
 function showXRGuide() { if (ensureHand()) drawHand(); }
@@ -3253,7 +3265,7 @@ renderer.setAnimationLoop(() => {
     $("#hudMeta").textContent = `${sz.x.toFixed(1).replace(".", ",")} × ${sz.z.toFixed(1).replace(".", ",")} m · hoogte ${sz.y.toFixed(1).replace(".", ",")} m`;
   }
   if (isVideo(cur)) { videoTick(); if (xr) for (const sp of xrGroup.children) sp.visible = hsVisible(sp.userData.h); }
-  updateXRVideoPanel(performance.now());
+  updateXRVideoPanel();
   updateComfort(dt, xr); updatePointer(performance.now());
   if (!xr) positionMarkers();
   updateArrow();
