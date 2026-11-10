@@ -12,7 +12,7 @@
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}</style>
 <script>
 /* offline cache: only on the published site, never inside exported tours */
-if ("serviceWorker" in navigator && location.protocol === "https:") {
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
 }
 </script>
@@ -236,6 +236,11 @@ aside:not(.flow) .scenes > .hint{grid-column:1/-1}
 .pin{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid #fff;transform:translate(-50%,-50%);z-index:6;pointer-events:none;box-shadow:0 0 0 6px rgba(240,122,42,.35)}
 .card{position:absolute;inset:0;display:grid;place-items:center;background:var(--veil);padding:16px;z-index:5}
 .card>div{background:var(--panel);color:var(--fg);border-radius:10px;max-width:480px;width:100%;max-height:100%;overflow:auto;padding:18px 20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+.card.side{inset:auto 12px 12px auto;top:12px;display:block;background:none;padding:0;pointer-events:none;width:min(400px,42%)}
+.card.side>div{pointer-events:auto;max-height:100%;border-left:4px solid var(--accent)}
+.stage.hasvbar .card.side{bottom:84px}
+@media (max-width:640px){.card.side{inset:auto 8px 8px 8px;top:auto;width:auto;max-height:46%}.card.side>div{max-width:none;border-left:0;border-top:4px solid var(--accent)}}
+.mk.open .dot{outline:3px solid #f07a2a;outline-offset:3px;animation:gpulse 1.4s ease-out infinite}
 .card h3{margin:0;font-family:var(--f-display);font-size:20px;font-weight:600;text-wrap:balance}
 .card p{margin:0;line-height:1.55;white-space:pre-wrap}
 .card img,.card video{border-radius:var(--r);max-width:100%}
@@ -279,10 +284,37 @@ input[type=file]{display:none}
 .vtrack input{width:100%;accent-color:#f07a2a;margin:0}
 .vticks{position:absolute;left:0;right:0;top:-2px;height:8px;pointer-events:none}
 .vticks i{position:absolute;top:0;width:9px;height:9px;border-radius:50%;transform:translateX(-50%);border:1.5px solid #fff}
+.vticks b{position:absolute;top:-3px;width:3px;height:16px;background:#fff;border-radius:2px;transform:translateX(-50%);opacity:.9}
+.vchwrap{position:relative}
+.vchmenu{position:absolute;bottom:calc(100% + 10px);right:0;background:rgba(12,16,19,.96);border-radius:10px;padding:6px;min-width:260px;max-height:50vh;overflow:auto;display:flex;flex-direction:column;gap:2px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.vchmenu[hidden]{display:none}
+.vchmenu button{display:flex;gap:10px;align-items:baseline;text-align:left;background:transparent;border:0;color:#fff;padding:8px 10px;border-radius:6px;cursor:pointer;font:inherit}
+.vchmenu button:hover,.vchmenu button.on{background:rgba(255,255,255,.12)}
+.vchmenu button.on{box-shadow:inset 3px 0 0 var(--accent)}
+.vchmenu small{font-family:var(--f-mono);color:#9fb0ba;font-variant-numeric:tabular-nums;flex:none}
+.chaps{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.chrow{display:grid;grid-template-columns:62px 1fr auto auto;gap:6px;align-items:center}
+.chrow input{min-width:0}
+.chrow .tm{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .vpart{font-size:12px;color:#c3ced5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
 .vbig{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:88px;height:88px;border-radius:50%;border:3px solid #fff;background:rgba(226,96,12,.92);color:#fff;font-size:34px;cursor:pointer;z-index:4;box-shadow:0 8px 30px rgba(0,0,0,.4);padding-left:6px}
 .stage.hasvbar .editbar{bottom:84px}
 .stage.hasvbar .bim{bottom:84px}
+.qbig{position:fixed;inset:0;z-index:60;background:#0c1013;color:#fff;display:flex;align-items:center;justify-content:center;gap:4vw;padding:3vh 4vw}
+.qbig[hidden]{display:none}
+.qbqr{background:#fff;padding:2vh;border-radius:12px;line-height:0;flex:none}
+.qbqr img{width:min(82vh,52vw);height:min(82vh,52vw);image-rendering:pixelated;max-width:none;border-radius:0}
+.qbside{display:flex;flex-direction:column;gap:2vh;min-width:0;max-width:40vw}
+.qbside h2{margin:0;font-family:var(--f-display);font-size:clamp(28px,4.4vw,64px);line-height:1.05}
+.qbside p{margin:0;font-size:clamp(16px,1.6vw,26px);color:#c3ced5}
+.qbcode{font-family:var(--f-mono);font-size:clamp(48px,7vw,120px);font-weight:600;letter-spacing:.1em;color:var(--accent);font-variant-numeric:tabular-nums;line-height:1}
+.qbcount{font-size:clamp(18px,2vw,32px);font-weight:600}
+.qblist{display:flex;flex-wrap:wrap;gap:6px;max-height:22vh;overflow:auto}
+.qbchip{background:rgba(255,255,255,.12);border-radius:999px;padding:4px 12px;font-size:clamp(12px,1.1vw,17px);white-space:nowrap}
+.qbchip.ok{background:#1f7a3d}.qbchip.bad{background:rgba(255,120,100,.25);color:#ffb4a6}
+.qbig .btn{font-size:16px;background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.35)}
+.qbig .btn.danger{background:rgba(255,120,100,.18);color:#ffb4a6}
+#questBtn.live::before{content:"● ";color:#5ee08a}
 .qrwrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
 .qr{background:#fff;padding:8px;border-radius:8px;line-height:0;flex:none}
 .qr img{width:200px;height:200px;image-rendering:pixelated;border-radius:0;max-width:none}
@@ -445,6 +477,12 @@ input[type=file]{display:none}
           <button class="btn small" id="sceneDown" aria-label="Omlaag">↓</button>
           <span id="delSceneWrap"></span>
         </div>
+        <div id="chapBox" hidden>
+          <h2 style="margin-top:10px">Hoofdstukken <span id="chapCount"></span></h2>
+          <p class="hint" id="chapHint">Deel de video op in hoofdstukken. Kijkers springen dan in het menu (en in VR op het handpaneel) meteen naar het volgende hoofdstuk.</p>
+          <div class="chaps" id="chapList"></div>
+          <div class="row" style="margin-top:6px"><button class="btn small" id="chapAdd">+ Hoofdstuk op huidig tijdstip</button></div>
+        </div>
       </section>
       <section class="sec" id="hsSec">
         <h2><span class="sh"><span class="sn" id="snHs"></span><span id="hsHead">Icoontjes</span></span> <span class="coord" id="hsCount"></span></h2>
@@ -533,6 +571,9 @@ input[type=file]{display:none}
         <span class="vtime" id="vTime">0:00 / 0:00</span>
         <div class="vtrack"><input type="range" id="vSeek" min="0" max="1" step="0.1" value="0" aria-label="Tijdlijn"><div class="vticks" id="vTicks"></div></div>
         <span class="vpart" id="vPart"></span>
+        <button class="vbtn" id="vChPrev" hidden aria-label="Vorig hoofdstuk" title="Vorig hoofdstuk">⏮</button>
+        <span class="vchwrap" id="vChWrap" hidden><button class="vbtn" id="vChBtn" aria-haspopup="true">☰ Hoofdstukken</button><div class="vchmenu" id="vChMenu" hidden></div></span>
+        <button class="vbtn" id="vChNext" hidden aria-label="Volgend hoofdstuk" title="Volgend hoofdstuk">⏭</button>
         <button class="vbtn" id="vMute">Dempen</button>
         <button class="vbtn" id="vNext" hidden>Volgend deel ▶</button>
       </div>
@@ -546,6 +587,7 @@ input[type=file]{display:none}
     </div>
   </main>
 </div>
+<div class="qbig" id="qBig" hidden></div>
 <div class="toast" id="toast" hidden></div>
 <input type="file" id="sceneFile" accept="image/*" multiple>
 <input type="file" id="ifcFile" accept=".ifc">
@@ -587,7 +629,7 @@ input[type=file]{display:none}
 
 <script type="application/json" id="demo-video">
 {"demo":true,"kind":"video","title":"Demo 360°-video: van brug naar werf","start":"vid1","autoNext":true,"guideAutostart":false,"route":[],"scenes":[
-{"id":"vid1","kind":"video","name":"Deel 1: brug en grondwerken","description":"Korte demovideo (24 s) gemaakt uit twee 360°-foto's.","video":"video/demo-360.mp4","duration":24,"yaw":0,"pitch":8,"hotspots":[
+{"id":"vid1","kind":"video","name":"Deel 1: brug en grondwerken","description":"Korte demovideo (24 s) gemaakt uit twee 360°-foto's.","video":"video/demo-360.mp4","duration":24,"yaw":0,"pitch":8,"chapters":[{"t":0,"title":"De boogbrug"},{"t":12,"title":"De grondwerken"}],"hotspots":[
  {"id":"t1","type":"info","yaw":2,"pitch":30,"t0":1,"t1":10,"title":"Bogen en hangers","text":"De schuine stalen bogen dragen het brugdek via dunne hangers. De hangers werken op trek, de bogen op druk."},
  {"id":"t2","type":"quiz","yaw":26,"pitch":12,"t0":6,"t1":11,"pause":true,"title":"Vraag: krachtswerking","question":"Welke kracht werkt hoofdzakelijk in de stalen bogen?","options":["Druk","Trek","Torsie"],"correct":0,"explain":"Een boog brengt verticale last als drukkracht naar de opleggingen. De hangers werken op trek."},
  {"id":"t3","type":"info","yaw":-8,"pitch":-35,"t0":14,"t1":23,"title":"Bandensporen en verdichting","text":"Hier is zwaar materieel gepasseerd. De losse toplaag moet nog verdicht worden voor er een fundering op komt."},
@@ -865,7 +907,7 @@ canvas.addEventListener("wheel", e => {
 }, { passive: false });
 window.addEventListener("keydown", e => {
   if (e.target.closest && e.target.closest("input,textarea,select")) return;
-  if (e.key === "Escape") { if (!$("#picker").hidden) { hidePicker(); return; } closeCard(); hideBim(); return; }
+  if (e.key === "Escape") { if (!$("#qBig").hidden) { hideQuestBig(); return; } if (!$("#picker").hidden) { hidePicker(); return; } closeCard(); hideBim(); return; }
   if (screen !== "app" || !cur) return;
   if (isVideo(cur) && e.code === "Space") { e.preventDefault(); vid.paused ? playVideo() : vid.pause(); return; }
   if (view === "pano") {
@@ -1025,7 +1067,7 @@ function renderMarkers() {
   for (const h of cur.hotspots) {
     const t = TYPES[h.type] || TYPES.info;
     const b = document.createElement("button");
-    b.className = "mk" + (selHs === h ? " sel" : "") + (gs && gs.scene === cur.id && gs.hotspot === h.id ? " focus" : "");
+    b.className = "mk" + (selHs === h ? " sel" : "") + (openHs === h && !$("#card").hidden ? " open" : "") + (gs && gs.scene === cur.id && gs.hotspot === h.id ? " focus" : "");
     b.dataset.id = h.id;
     const done = h.type === "quiz" && h.id in answers ? (answers[h.id] ? " ✓" : " ✗") : "";
     b.innerHTML = `<span class="dot">${t.icon}</span><span class="lbl"></span>`;
@@ -1104,19 +1146,24 @@ function activate(h) {
   const row = add("div", { className: "row" });
   const close = Object.assign(document.createElement("button"), { className: "btn", textContent: "Sluiten" });
   close.onclick = closeCard; row.appendChild(close);
-  $("#card").hidden = false; close.focus();
+  sideOwner = body.firstChild; $("#card").classList.add("side"); $("#card").hidden = false; close.focus({ preventScroll: true }); renderMarkers(); positionMarkers();
   if (xr) {
     if (h.type === "quiz") showXRQuiz(h, body);
-    else if (h.type === "video" && mediaEl) showXRVideo(mediaEl, h.title);
-    else if (h.type === "audio" && mediaEl) { mediaEl.play().catch(() => {}); showXRText(h.title, [h.text || "", "", "♪ Het geluidsfragment speelt af."]); }
-    else if (h.type === "doc" || h.type === "web") showXRText(h.title, [h.text || "", "", "Open dit icoontje op een pc of gsm om het document of de website te bekijken."]);
-    else showXRText(h.title, (h.text || "").split("\n"));
+    else if (h.type === "video" && mediaEl) showXRVideo(mediaEl, h.title, h);
+    else if (h.type === "audio" && mediaEl) { mediaEl.play().catch(() => {}); showXRText(h.title, [h.text || "", "", "♪ Het geluidsfragment speelt af."], h); }
+    else if (h.type === "doc" || h.type === "web") showXRText(h.title, [h.text || "", "", "Open dit icoontje op een pc of gsm om het document of de website te bekijken."], h);
+    else showXRText(h.title, (h.text || "").split("\n"), h);
   }
 }
+/* the side panel is only for an opened icon: any other content in the card is a normal (centred) dialog again */
+let sideOwner = null;
+new MutationObserver(() => { if (sideOwner && !$("#cardBody").contains(sideOwner)) { sideOwner = null; $("#card").classList.remove("side"); } }).observe($("#cardBody"), { childList: true });
 function closeCard() {
   openQuiz = null; openHs = null;
   $("#cardBody").querySelectorAll("audio,video").forEach(m => { try { m.pause(); } catch (e) {} });
-  $("#card").hidden = true; delete $("#card").dataset.busy; hideXRCard();
+  const wasSide = $("#card").classList.contains("side");
+  $("#card").hidden = true; $("#card").classList.remove("side"); delete $("#card").dataset.busy; hideXRCard();
+  if (wasSide) renderMarkers(), positionMarkers();
   if (vState.resume && isVideo(cur)) { vState.resume = false; playVideo(); }
   renderVbar();
 }
@@ -1136,6 +1183,7 @@ function renderHeader() {
   $("#modeView").setAttribute("aria-pressed", mode === "view"); $("#modeEdit").setAttribute("aria-pressed", mode === "edit");
   $("#modeSeg").hidden = viewerOnly;
   $("#questBtn").hidden = viewerOnly || questMode || !tour.scenes.length;
+  $("#questBtn").classList.toggle("live", !!qSession);
   if (document.activeElement !== $("#tourTitle")) $("#tourTitle").value = tour.title || "";
   $("#tourTitle").readOnly = mode !== "edit" || viewerOnly;
   document.querySelectorAll("[data-edit]").forEach(el => el.hidden = mode !== "edit" || viewerOnly);
@@ -1306,6 +1354,7 @@ function renderSide() {
   $("#sceneUp").hidden = $("#sceneDown").hidden = tour.scenes.length < 2;
   $("#sceneUp").disabled = ci === 0; $("#sceneDown").disabled = ci === tour.scenes.length - 1;
   $("#delSceneWrap").innerHTML = '<button class="btn small danger" id="delScene">Verwijder</button>';
+  renderChapEditor();
   $("#delScene").onclick = () => confirmInline("#delSceneWrap", M ? "Model verwijderen?" : isVideo(cur) ? "Video verwijderen?" : "Standpunt verwijderen?", deleteScene);
   const totalHs = tour.scenes.reduce((n, s) => n + s.hotspots.length, 0);
   $("#hsCount").textContent = edit && tour.scenes.length > 1 ? (totalHs ? totalHs + " in totaal" : "") : (cur.hotspots.length || "");
@@ -1413,7 +1462,7 @@ function confirmInline(wrap, q, fn) {
   const [yes, no] = w.querySelectorAll("button"); yes.onclick = fn; no.onclick = render;
 }
 function deleteScene() {
-  const id = cur.id; if (cur.video?.startsWith("idb:")) lib.del("blobs", cur.video.slice(4));
+  const id = cur.id; if (cur.video?.startsWith("idb:")) delVideo(cur.video.slice(4));
   tour.scenes = tour.scenes.filter(s => s.id !== id); delete modelCache[id];
   tour.scenes.forEach(s => s.hotspots = s.hotspots.filter(h => !(h.type === "link" && h.target === id)));
   tour.route = route().filter(st => st.scene !== id);
@@ -1815,7 +1864,7 @@ async function renderHome() {
       dw.innerHTML = '<span class="confirm">Definitief verwijderen? <button class="btn small danger">Ja</button><button class="btn small">Nee</button></span>';
       const [y, n] = dw.querySelectorAll("button");
       y.onclick = async () => {
-        try { const d = await lib.get("data", m.id); for (const s of JSON.parse(d || "{}").scenes || []) if (s.video?.startsWith("idb:")) await lib.del("blobs", s.video.slice(4)); } catch (e) {}
+        await delTourVideos(m.id);
         await lib.del("meta", m.id); await lib.del("data", m.id); renderHome(); toast("Project verwijderd");
       };
       n.onclick = renderHome;
@@ -1923,7 +1972,30 @@ function placeInFront(mesh, dist = 1.6) {
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(xrCam.getWorldQuaternion(new THREE.Quaternion())); fwd.y = 0; fwd.normalize();
   mesh.position.copy(head).addScaledVector(fwd, dist); mesh.lookAt(head.x, mesh.position.y, head.z); mesh.renderOrder = 3; world.add(mesh);
 }
-function showXRText(title, lines) {
+/* an explanation card goes NEXT to its icon (on the left, the icon's label runs to the right), with a line to the
+   icon and a ring around it, so you still see what it is about while you read. Without an icon: in front of you. */
+function hsWorldPos(h) { const sp = h && xrGroup.children.find(x => x.userData.h === h); return sp ? sp.getWorldPosition(new THREE.Vector3()) : null; }
+function placeBeside(mesh, h, dist = 1.7) {
+  const p = hsWorldPos(h); if (!p) { placeInFront(mesh, dist); return; }
+  const xrCam = renderer.xr.getCamera(), head = new THREE.Vector3().setFromMatrixPosition(xrCam.matrixWorld);
+  const d = p.clone().sub(head), flat = Math.hypot(d.x, d.z) || 1e-6;
+  const yaw = Math.atan2(d.x, -d.z), pitch = Math.atan2(d.y, flat);
+  mesh.geometry.computeBoundingBox(); const bb = mesh.geometry.boundingBox, hw = (bb.max.x - bb.min.x) / 2 * mesh.scale.x;
+  const off = Math.atan(hw / dist) + deg(9), cy = yaw - off, cp = clamp(pitch, deg(-25), deg(15));
+  mesh.position.set(head.x + Math.sin(cy) * Math.cos(cp) * dist, head.y + Math.sin(cp) * dist, head.z - Math.cos(cy) * Math.cos(cp) * dist);
+  mesh.lookAt(head.x, mesh.position.y, head.z); mesh.renderOrder = 3; world.add(mesh);
+  /* line from the card's right edge to the icon, and a ring around the icon */
+  mesh.updateMatrixWorld(true);
+  const edge = new THREE.Vector3(bb.max.x, 0, 0).applyMatrix4(mesh.matrixWorld);
+  const tip = p.clone().sub(head).setLength(Math.max(0.5, p.distanceTo(head) - 0.02)).add(head);
+  const lineMat = new THREE.LineBasicMaterial({ color: 0xf07a2a, depthTest: false, transparent: true, opacity: 0.9 });
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([edge, tip]), lineMat); line.renderOrder = 3;
+  const rs = p.distanceTo(head) * 0.045;
+  const ring = new THREE.Mesh(new THREE.RingGeometry(rs, rs * 1.25, 40), new THREE.MeshBasicMaterial({ color: 0xf07a2a, depthTest: false, transparent: true, side: THREE.DoubleSide }));
+  ring.position.copy(tip); ring.lookAt(head); ring.renderOrder = 3;
+  world.add(line, ring); mesh.userData.extra = [line, ring];
+}
+function showXRText(title, lines, h) {
   hideXRCard();
   const c = document.createElement("canvas"); c.width = 1024; c.height = 640; const g = c.getContext("2d");
   g.fillStyle = "rgba(20,26,31,.95)"; g.fillRect(0, 0, 1024, 640); g.fillStyle = "#fff"; g.font = "600 52px sans-serif"; g.fillText(title || "", 48, 90);
@@ -1932,14 +2004,14 @@ function showXRText(title, lines) {
   g.fillStyle = "#f07a2a"; g.font = "600 30px sans-serif"; g.fillText("Trigger: sluiten", 48, 620);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
   xrCard = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false }));
-  placeInFront(xrCard);
+  if (h) placeBeside(xrCard, h); else placeInFront(xrCard);
 }
-function showXRVideo(videoEl, title) {
+function showXRVideo(videoEl, title, h) {
   hideXRCard();
   const tex = new THREE.VideoTexture(videoEl); tex.colorSpace = THREE.SRGBColorSpace;
   const ar = videoEl.videoWidth && videoEl.videoHeight ? videoEl.videoWidth / videoEl.videoHeight : 16 / 9;
   xrCard = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8 / ar), new THREE.MeshBasicMaterial({ map: tex, depthTest: false }));
-  placeInFront(xrCard, 2); videoEl.play().catch(() => {});
+  if (h) placeBeside(xrCard, h, 2); else placeInFront(xrCard, 2); videoEl.play().catch(() => {});
 }
 /* VR question: tap an answer with the controller, then see right/wrong and the explanation */
 function showXRQuiz(h, body) {
@@ -1994,13 +2066,14 @@ function showXRQuiz(h, body) {
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
     const geo = new THREE.PlaneGeometry(1.5, 1.5 * H / W);
     if (xrCard && xrCard.userData.quiz === h) { xrCard.material.map.dispose(); xrCard.material.map = tex; xrCard.geometry.dispose(); xrCard.geometry = geo; }
-    else { xrCard = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, side: THREE.DoubleSide })); placeInFront(xrCard, 1.7); }
-    xrCard.userData = { quiz: h, btns, W, H, press: uv => { const px = uv.x * W, py = (1 - uv.y) * H; const b = btns.find(b => px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h); if (b) b.fn(); },
+    else { xrCard = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, side: THREE.DoubleSide })); placeBeside(xrCard, h, 1.7); }
+    const extra = xrCard.userData.extra;
+    xrCard.userData = { extra, quiz: h, btns, W, H, press: uv => { const px = uv.x * W, py = (1 - uv.y) * H; const b = btns.find(b => px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h); if (b) b.fn(); },
       hover: uv => { const px = uv ? uv.x * W : -1, py = uv ? (1 - uv.y) * H : -1; const b = uv && btns.find(b => px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h); const id = b ? b.id : null; if (id !== hover) { hover = id; rebuild(); } } };
   };
   rebuild();
 }
-function hideXRCard() { if (xrCard) { world.remove(xrCard); xrCard.material.map?.dispose(); xrCard = null; } }
+function hideXRCard() { if (xrCard) { for (const o of xrCard.userData.extra || []) { world.remove(o); o.geometry.dispose(); o.material.dispose(); } world.remove(xrCard); xrCard.material.map?.dispose(); xrCard = null; } }
 const controllers = [0, 1].map(i => {
   const c = renderer.xr.getController(i);
   const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -8)]), new THREE.LineBasicMaterial({ color: 0xf07a2a }));
@@ -2019,7 +2092,23 @@ const controllers = [0, 1].map(i => {
   });
   return c;
 });
-let snapLatch = false;
+let snapLatch = false, snapNext = 0;
+/* turn in steps of 30° with a stick, so you can keep looking straight ahead; hold the stick to keep turning */
+function snapTurn(x) {
+  const now = performance.now();
+  if (Math.abs(x) < 0.3) { snapLatch = false; return; }
+  if (Math.abs(x) < 0.7) return;
+  if (snapLatch && now < snapNext) return;
+  snapNext = now + (snapLatch ? 320 : 480); snapLatch = true;
+  rig.rotation.y -= Math.sign(x) * deg(30); comfort.turnT = now;
+}
+/* 360° photo and video: both sticks turn (there is nothing to walk) */
+function xrTurnOnly() {
+  const s = renderer.xr.getSession(); if (!s) return;
+  let x = 0;
+  for (const src of s.inputSources) { const gp = src.gamepad; if (!gp || gp.axes.length < 4) continue; if (Math.abs(gp.axes[2]) > Math.abs(x)) x = gp.axes[2]; }
+  snapTurn(x);
+}
 function xrLocomotion(dt) {
   const s = renderer.xr.getSession(); if (!s || !M) return;
   let fwd = 0, strafe = 0, turn = 0, ty = 0;
@@ -2037,10 +2126,7 @@ function xrLocomotion(dt) {
     tp.aiming = false; tpLine.visible = false; tpRing.visible = false;
     if (tp.hit) { const to = tp.hit.clone(); tp.hit = null; fadeXR(() => { player.copy(to); dropToFloor(true); }); }
   }
-  if (!tp.aiming) {
-    if (Math.abs(turn) > 0.7 && !snapLatch) { snapLatch = true; rig.rotation.y -= Math.sign(turn) * deg(30); comfort.turnT = performance.now(); }
-    if (Math.abs(turn) < 0.3) snapLatch = false;
-  }
+  if (!tp.aiming) snapTurn(turn);
   comfort.moving = !!(fwd || strafe);
   const q = renderer.xr.getCamera().getWorldQuaternion(new THREE.Quaternion());
   const d = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
@@ -2080,7 +2166,7 @@ async function enterVR() {
 }
 function showHelp(msg) {
   const body = $("#cardBody");
-  body.innerHTML = `<h3>VR starten in de bril</h3><p>VR start alleen in de browser van een VR-bril, op een pagina via https of localhost.</p><p>1. Klik in Bewerken op <b>Exporteren</b>. Je krijgt één HTML-bestand met alles erin.\n2. Zet dat bestand in de map van de VR-viewer starter en scan de QR-code met de VR-bril.\n3. Open de tour en tik op <b>Start VR</b>.\n\nIn VR: richt de straal en druk op de trigger om een icoontje te openen. In een BIM-model stap je met de linker stick en draai je met de rechter stick.</p><p class="hint"></p><div class="row"><button class="btn">Sluiten</button></div>`;
+  body.innerHTML = `<h3>VR starten in de bril</h3><p>VR start alleen in de browser van een VR-bril, op een pagina via https of localhost.</p><p>1. Klik in Bewerken op <b>Exporteren</b>. Je krijgt één HTML-bestand met alles erin.\n2. Zet dat bestand in de map van de VR-viewer starter en scan de QR-code met de VR-bril.\n3. Open de tour en tik op <b>Start VR</b>.\n\nIn VR: richt de straal en druk op de trigger om een icoontje te openen. Duw een stick naar links of rechts om te draaien, dan hoef je je hoofd niet te draaien. In een BIM-model stap je met de linker stick en draai je met de rechter stick.</p><p class="hint"></p><div class="row"><button class="btn">Sluiten</button></div>`;
   body.querySelector(".hint").textContent = msg ? "Melding van de browser: " + msg : "Deze browser of dit venster ondersteunt geen WebXR.";
   body.querySelector("button").onclick = closeCard; $("#card").hidden = false;
 }
@@ -2122,8 +2208,14 @@ async function videoURL(s) {
   if (s.video.startsWith("idb:")) {
     const k = s.video.slice(4);
     if (blobUrlCache.has(k)) return blobUrlCache.get(k);
-    const b = await lib.get("blobs", k); if (!b) throw new Error("het videobestand zit niet (meer) in deze browser");
-    const u = URL.createObjectURL(b); blobUrlCache.set(k, u); return u;
+    const b = await lib.get("blobs", k);
+    if (b) { const u = URL.createObjectURL(b); blobUrlCache.set(k, u); return u; }
+    /* received on a headset in pieces: play it while it is still arriving (service worker), or as one blob when it is complete */
+    const p = await videoFromPieces(k);
+    if (!p) throw new Error("het videobestand zit niet (meer) in deze browser");
+    if (p.blob) { const u = URL.createObjectURL(p.blob); blobUrlCache.set(k, u); return u; }
+    if (canStream()) return "wt-stream/" + encodeURIComponent(k);
+    throw new Error(`de video komt nog binnen (${Math.round((p.info.have || 0) / p.info.size * 100)}%). Hij speelt af zodra hij volledig binnen is`);
   }
   return s.video;
 }
@@ -2161,7 +2253,7 @@ vid.addEventListener("error", async () => {
   const s = cur;
   if (s.video?.startsWith("idb:") && !vState.triedData) {
     vState.triedData = true;
-    const b = await lib.get("blobs", s.video.slice(4));
+    const b = await lib.get("blobs", s.video.slice(4)) || (await videoFromPieces(s.video.slice(4)))?.blob;
     if (b && b.size < 300 * 1048576) { vid.src = await readAsDataURL(b); return; }
   }
   toast("Deze video kan hier niet afgespeeld worden. Exporteer in Insta360 Studio als mp4 met H.264 (niet H.265), of gebruik de lokale versie van Werftour.");
@@ -2197,6 +2289,75 @@ function updateVbarTime(t, force) {
   $("#vTime").textContent = `${fmtT(t)} / ${fmtT(d)}`;
   if (document.activeElement !== $("#vSeek")) $("#vSeek").value = t;
 }
+/* ---------- chapters in a 360° video: scene.chapters = [{ t, title }] ---------- */
+const chapters = s => (s && Array.isArray(s.chapters) ? s.chapters.filter(c => c && isFinite(c.t)).sort((a, b) => a.t - b.t) : []);
+function chapAt(s, t) { const cs = chapters(s); let i = -1; cs.forEach((c, k) => { if (c.t <= t + 0.3) i = k; }); return i; }
+function gotoChapter(i) {
+  const cs = chapters(cur); if (!cs[i]) return;
+  vid.currentTime = Math.max(0, cs[i].t); if (vid.paused) playVideo();
+  hideChMenu(); renderVbar(); if (renderer.xr.isPresenting && xrHand) drawHand();
+}
+function jumpChapter(dir) {
+  const cs = chapters(cur), t = vid.currentTime, i = chapAt(cur, t);
+  if (dir > 0) {
+    if (i + 1 < cs.length) return gotoChapter(i + 1);
+    const k = tour.scenes.indexOf(cur), next = tour.scenes.slice(k + 1).find(isVideo);
+    if (next) go(next.id).then(playVideo); else toast("Dit is het laatste hoofdstuk.");
+    return;
+  }
+  if (i >= 0 && t - cs[i].t > 3) return gotoChapter(i);
+  if (i > 0) return gotoChapter(i - 1);
+  vid.currentTime = 0; renderVbar(); if (renderer.xr.isPresenting && xrHand) drawHand();
+}
+function hideChMenu() { $("#vChMenu").hidden = true; }
+function showChMenu() {
+  const m = $("#vChMenu"), cs = chapters(cur), on = chapAt(cur, vid.currentTime); m.innerHTML = "";
+  cs.forEach((c, i) => { const b = document.createElement("button"); b.className = i === on ? "on" : ""; b.innerHTML = `<small>${fmtT(c.t)}</small><span></span>`; b.querySelector("span").textContent = c.title || `Hoofdstuk ${i + 1}`; b.onclick = () => gotoChapter(i); m.appendChild(b); });
+  m.hidden = false;
+}
+$("#vChBtn").onclick = e => { e.stopPropagation(); $("#vChMenu").hidden ? showChMenu() : hideChMenu(); };
+document.addEventListener("click", e => { if (!e.target.closest("#vChWrap")) hideChMenu(); });
+$("#vChPrev").onclick = () => jumpChapter(-1);
+$("#vChNext").onclick = () => jumpChapter(1);
+function renderChapEditor() {
+  const box = $("#chapBox"), show = mode === "edit" && !viewerOnly && isVideo(cur);
+  box.hidden = !show; if (!show) return;
+  const cs = chapters(cur); cur.chapters = cs;
+  $("#chapCount").textContent = cs.length || "";
+  $("#chapAdd").textContent = `+ Hoofdstuk op ${fmtT(vid.currentTime)}`;
+  const list = $("#chapList");
+  if (list.contains(document.activeElement)) return;   /* don't rebuild while typing */
+  list.innerHTML = "";
+  cs.forEach((c, i) => {
+    const r = document.createElement("div"); r.className = "chrow";
+    r.innerHTML = `<input class="tm" aria-label="Tijdstip (m:ss)"><input aria-label="Titel van het hoofdstuk" placeholder="Hoofdstuk ${i + 1}"><button class="btn small" title="Hierheen springen">▶</button><button class="btn small danger" title="Hoofdstuk verwijderen">✕</button>`;
+    const [tm, ti] = r.querySelectorAll("input"), [pl, del] = r.querySelectorAll("button");
+    tm.value = fmtT(c.t); ti.value = c.title || "";
+    tm.onchange = () => { const v = parseT(tm.value); if (v != null && isFinite(v)) { c.t = clamp(v, 0, vid.duration || cur.duration || v); save(); } renderChapEditor(); renderVbar(); };
+    ti.oninput = () => { c.title = ti.value; save(); renderVbar(); };
+    ti.onblur = () => renderChapEditor();
+    pl.onclick = () => { vid.currentTime = c.t; renderVbar(); };
+    del.onclick = () => { cur.chapters = cs.filter(x => x !== c); save(); renderChapEditor(); renderVbar(); };
+    list.appendChild(r);
+  });
+}
+$("#chapAdd").onclick = () => {
+  const t = Math.round(vid.currentTime * 10) / 10, cs = chapters(cur);
+  if (cs.some(c => Math.abs(c.t - t) < 1)) { toast("Op dit tijdstip begint al een hoofdstuk."); return; }
+  if (!cs.length && t > 1) cs.push({ t: 0, title: "Begin" });
+  const c = { t, title: "" }; cs.push(c); cur.chapters = cs; save(); renderChapEditor(); renderVbar();
+  const k = chapters(cur).indexOf(c); $("#chapList").children[k]?.querySelectorAll("input")[1]?.focus();
+};
+vid.addEventListener("timeupdate", () => { if (!$("#chapBox").hidden) $("#chapAdd").textContent = `+ Hoofdstuk op ${fmtT(vid.currentTime)}`; const i = chapAt(cur, vid.currentTime); if (i !== lastChap) { lastChap = i; renderChapLabel(); } });
+let lastChap = -2;
+function renderChapLabel() {
+  if (!isVideo(cur)) return;
+  const parts = tour.scenes.filter(isVideo), cs = chapters(cur), i = chapAt(cur, vid.currentTime);
+  const p = parts.length > 1 ? `Deel ${parts.indexOf(cur) + 1} van ${parts.length}` : "";
+  const c = cs.length && i >= 0 ? `${i + 1}/${cs.length} · ${cs[i].title || "Hoofdstuk " + (i + 1)}` : "";
+  $("#vPart").textContent = [p, c].filter(Boolean).join(" · "); $("#vPart").title = $("#vPart").textContent;
+  if (!$("#vChMenu").hidden) showChMenu();
+}
 function renderVbar() {
   const on = screen === "app" && isVideo(cur);
   $("#vbar").hidden = !on; stage.classList.toggle("hasvbar", on);
@@ -2206,9 +2367,13 @@ function renderVbar() {
   $("#vMute").textContent = vid.muted ? "Geluid aan" : "Dempen";
   const d = vid.duration || cur.duration || 0; $("#vSeek").max = d || 1;
   const parts = tour.scenes.filter(isVideo), i = tour.scenes.indexOf(cur), next = tour.scenes.slice(i + 1).find(isVideo);
-  $("#vPart").textContent = parts.length > 1 ? `Deel ${parts.indexOf(cur) + 1} van ${parts.length}` : "";
-  $("#vNext").hidden = !next;
+  const cs = chapters(cur);
+  $("#vChPrev").hidden = $("#vChNext").hidden = $("#vChWrap").hidden = !cs.length;
+  if (!cs.length) hideChMenu();
+  $("#vNext").hidden = !next || cs.length > 0;
+  renderChapLabel(); renderChapEditor();
   const tk = $("#vTicks"); tk.innerHTML = "";
+  if (d) for (const c of cs) { const e = document.createElement("b"); e.style.left = `calc(8px + (100% - 16px) * ${clamp(c.t / d, 0, 1)})`; e.title = `${c.title || "Hoofdstuk"} · ${fmtT(c.t)}`; tk.appendChild(e); }
   if (d) for (const h of cur.hotspots) if (h.t0 != null) {
     const e = document.createElement("i"); e.style.left = `calc(8px + (100% - 16px) * ${clamp(h.t0 / d, 0, 1)})`;
     e.style.background = (TYPES[h.type] || TYPES.info).color; e.title = `${h.title || ""} · ${fmtT(h.t0)}`; tk.appendChild(e);
@@ -2226,7 +2391,7 @@ $("#vNext").onclick = () => { const i = tour.scenes.indexOf(cur), next = tour.sc
 let xrVKey = "";
 function updateXRVideoPanel() {
   if (!renderer.xr.isPresenting || !isVideo(cur) || screen !== "app" || !xrHand || !xrHand.visible) { xrVKey = ""; return; }
-  const k = Math.floor(vid.currentTime) + "|" + vid.paused + "|" + vid.muted + "|" + cur.id;
+  const k = Math.floor(vid.currentTime) + "|" + vid.paused + "|" + vid.muted + "|" + cur.id + "|" + xrHandChap;
   if (k !== xrVKey) { xrVKey = k; drawHand(); }
 }
 
@@ -2409,6 +2574,7 @@ function fitText(g, t, w) { if (g.measureText(t).width <= w) return t; while (t.
 /* VR panel on the left hand (like a tablet): tour text with pages, play controls, start/stop, leave VR.
    Point with the right controller and pull the trigger. B/Y (or the grip) hides/shows it. */
 let xrHandHover = null, xrHandHoverKey = "", xrALatch = false, xrXLatch = false;
+let xrHandChapFor = null, xrHandChap = -1;   /* >= 0: the hand panel shows the list of chapters (value = first chapter on the page) */
 let xrHand = null, xrHandCv = null, xrHandTex = null, xrHandBtns = [], xrHandMsg = "", xrHandPage = 0, xrHandStep = -1, xrBtnLatch = false;
 const HW = 1024, HH = 1120, HAND_W = 0.3;
 const grips = [0, 1].map(i => {
@@ -2496,18 +2662,37 @@ function drawHand() {
   } else if (isVideo(cur)) {
     xrHandStep = -1;
     const led = samen.on && samen.follow;
+    const cs = chapters(cur), ci = chapAt(cur, vid.currentTime);
+    if (!cs.length || led || xrHandChapFor !== cur.id) { xrHandChap = -1; xrHandChapFor = cur.id; }
+    const compact = cs.length > 0 && !led, Y = compact ? 300 : 500;   /* with chapters everything moves up to make room */
     g.font = "34px sans-serif"; g.fillStyle = "rgba(255,255,255,.92)";
     const msg = xrHandMsg || (samen.on ? (led ? "Samen-les: de docent leidt en bedient de video. Kijk vrij rond." : "Samen-les: je kijkt nu zelf. Druk op 'Volg de docent' om weer mee te gaan.") : "Kijk rond in de video. Richt op een icoontje en druk op de trigger.");
-    wrapLines(g, msg, 944).slice(0, 3).forEach((l, i) => g.fillText(l, 40, 180 + i * 46));
-    if (samen.on) B(40, 330, 944, 90, led ? "Zelf bedienen" : "▶ Volg de docent", () => setFollow(!samen.follow), led ? "" : "primary");
+    if (!(compact && samen.on) && xrHandChap < 0) wrapLines(g, msg, 944).slice(0, compact ? 2 : 3).forEach((l, i) => g.fillText(l, 40, 180 + i * 46));
+    if (samen.on && xrHandChap < 0) B(40, compact ? 150 : 330, 944, 90, led ? "Zelf bedienen" : "▶ Volg de docent", () => setFollow(!samen.follow), led ? "" : "primary");
     const vids = tour.scenes.filter(isVideo), vi = vids.indexOf(cur), nxt = vids[vi + 1];
     g.fillStyle = "rgba(255,255,255,.6)"; g.font = "600 28px sans-serif";
-    g.fillText(fitText(g, (vids.length > 1 ? `DEEL ${vi + 1} VAN ${vids.length} · ` : "") + (cur.name || ""), 944), 40, 500);
+    if (xrHandChap < 0) g.fillText(fitText(g, (vids.length > 1 ? `DEEL ${vi + 1} VAN ${vids.length} · ` : "") + (cur.name || ""), 944), 40, Y);
     if (led) {
       g.fillStyle = "rgba(255,255,255,.5)"; g.font = "32px sans-serif"; g.fillText("De docent bedient de video.", 40, 580);
+      if (cs.length && ci >= 0) { g.fillStyle = "#fff"; g.font = "600 34px sans-serif"; g.fillText(fitText(g, `Hoofdstuk ${ci + 1}: ${cs[ci].title || ""}`, 944), 40, 640); }
+    } else if (xrHandChap >= 0) {
+      /* list of chapters: point and pull the trigger to jump */
+      const PER = 7, p0 = clamp(xrHandChap, 0, Math.max(0, cs.length - 1)) - (clamp(xrHandChap, 0, cs.length - 1) % PER);
+      g.fillStyle = "#fff"; g.font = "600 36px sans-serif"; g.fillText("Kies een hoofdstuk", 40, 170);
+      cs.slice(p0, p0 + PER).forEach((c, k) => {
+        const i = p0 + k, y = 200 + k * 102;
+        B(40, y, 944, 88, `${fmtT(c.t)}   ${c.title || "Hoofdstuk " + (i + 1)}`, () => { xrHandChap = -1; gotoChapter(i); }, i === ci ? "primary" : "");
+      });
+      const pages = Math.ceil(cs.length / PER), pg = Math.floor(p0 / PER);
+      if (pages > 1) {
+        B(40, 920, 296, 80, "▲ vorige", () => { xrHandChap = (pg - 1) * PER; drawHand(); }, "", pg === 0);
+        g.fillStyle = "rgba(255,255,255,.7)"; g.font = "28px sans-serif"; g.textAlign = "center"; g.fillText(`${pg + 1} / ${pages}`, 512, 970); g.textAlign = "left";
+        B(688, 920, 296, 80, "▼ meer", () => { xrHandChap = (pg + 1) * PER; drawHand(); }, "", pg === pages - 1);
+      }
+      B(40, 1020, 944, 80, "✕ Terug naar de video", () => { xrHandChap = -1; drawHand(); });
     } else {
       const d = vid.duration || cur.duration || 1, t = vid.currentTime, f = clamp(t / d, 0, 1);
-      const SX = 40, SY = 530, SW = 944, SH = 84, ty = SY + SH / 2;
+      const SX = 40, SY = Y + 30, SW = 944, SH = 84, ty = SY + SH / 2;
       const hovSeek = xrHandHover && xrHandHover.x >= SX && xrHandHover.x <= SX + SW && xrHandHover.y >= SY && xrHandHover.y <= SY + SH;
       if (hovSeek) { g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 4; g.beginPath(); g.roundRect(SX - 6, SY - 6, SW + 12, SH + 12, 20); g.stroke(); }
       g.fillStyle = "rgba(255,255,255,.22)"; g.beginPath(); g.roundRect(SX + 16, ty - 9, SW - 32, 18, 9); g.fill();
@@ -2515,12 +2700,18 @@ function drawHand() {
       for (const h of cur.hotspots) if (h.t0 != null) { g.fillStyle = (TYPES[h.type] || TYPES.info).color; g.beginPath(); g.arc(SX + 16 + (SW - 32) * clamp(h.t0 / d, 0, 1), ty, 11, 0, 7); g.fill(); }
       g.fillStyle = "#fff"; g.beginPath(); g.arc(SX + 16 + (SW - 32) * f, ty, 18, 0, 7); g.fill();
       btns.push({ x: SX, y: SY, w: SW, h: SH, fn: fx => { vid.currentTime = clamp((fx * SW - 16) / (SW - 32), 0, 1) * (vid.duration || 0); drawHand(); } });
-      g.fillStyle = "#d9e1e6"; g.font = "32px monospace"; g.textAlign = "center"; g.fillText(`${fmtT(t)} / ${fmtT(d)}`, 512, 662); g.textAlign = "left";
-      B(40, 700, 296, 110, "↺ 10 s", () => { vid.currentTime = Math.max(0, vid.currentTime - 10); drawHand(); });
-      B(364, 700, 296, 110, vid.paused ? "▶ Afspelen" : "❚❚ Pauze", () => { vid.paused ? playVideo() : vid.pause(); setTimeout(drawHand, 50); }, "primary");
-      B(688, 700, 296, 110, "10 s ↻", () => { vid.currentTime = Math.min(vid.duration || 0, vid.currentTime + 10); drawHand(); });
-      B(40, 838, 460, 80, vid.muted ? "Geluid: uit" : "Geluid: aan", () => { vid.muted = !vid.muted; renderVbar(); drawHand(); });
-      B(524, 838, 460, 80, "Volgend deel ▶", () => $("#vNext").click(), "", !nxt);
+      g.fillStyle = "#d9e1e6"; g.font = "32px monospace"; g.textAlign = "center"; g.fillText(`${fmtT(t)} / ${fmtT(d)}`, 512, Y + 162); g.textAlign = "left";
+      B(40, Y + 200, 296, 110, "↺ 10 s", () => { vid.currentTime = Math.max(0, vid.currentTime - 10); drawHand(); });
+      B(364, Y + 200, 296, 110, vid.paused ? "▶ Afspelen" : "❚❚ Pauze", () => { vid.paused ? playVideo() : vid.pause(); setTimeout(drawHand, 50); }, "primary");
+      B(688, Y + 200, 296, 110, "10 s ↻", () => { vid.currentTime = Math.min(vid.duration || 0, vid.currentTime + 10); drawHand(); });
+      B(40, Y + 338, 460, 80, vid.muted ? "Geluid: uit" : "Geluid: aan", () => { vid.muted = !vid.muted; renderVbar(); drawHand(); });
+      if (cs.length) {
+        B(524, Y + 338, 460, 80, "☰ Hoofdstukken", () => { xrHandChap = Math.max(0, ci); drawHand(); });
+        g.fillStyle = "rgba(255,255,255,.6)"; g.font = "600 28px sans-serif";
+        g.fillText(fitText(g, ci >= 0 ? `HOOFDSTUK ${ci + 1} VAN ${cs.length} · ${cs[ci].title || ""}` : `${cs.length} HOOFDSTUKKEN`, 944), 40, Y + 466);
+        B(40, Y + 490, 460, 96, "⏮ Vorig hoofdstuk", () => jumpChapter(-1), "", ci < 0 && vid.currentTime < 3);
+        B(524, Y + 490, 460, 96, ci + 1 < cs.length ? "Volgend hoofdstuk ⏭" : nxt ? "Volgend deel ▶" : "Volgend hoofdstuk ⏭", () => jumpChapter(1), "primary", ci + 1 >= cs.length && !nxt);
+      } else B(524, Y + 338, 460, 80, "Volgend deel ▶", () => $("#vNext").click(), "", !nxt);
     }
   } else {
     xrHandStep = -1;
@@ -2532,7 +2723,7 @@ function drawHand() {
   }
   if (M && !st) B(40, 760, 944, 64, "Tunnelzicht bij bewegen: " + (comfort.vignOn ? "aan" : "uit"), () => { comfort.vignOn = !comfort.vignOn; try { localStorage.setItem("werftour-vign", comfort.vignOn ? "1" : "0"); } catch (e) {} drawHand(); });
   g.fillStyle = "rgba(255,255,255,.45)"; g.font = "24px sans-serif";
-  if (!st) wrapLines(g, "Richt met je rechterhand en druk op de trigger, of tik met je rechtercontroller op het scherm. Knop B of Y: scherm verbergen of tonen.", 944).slice(0, 2).forEach((l, i, arr) => g.fillText(l, 40, HH - 36 - (arr.length - 1 - i) * 32));
+  if (!st && xrHandChap < 0) wrapLines(g, "Richt met je rechterhand en druk op de trigger, of tik met je rechtercontroller op het scherm. Knop B of Y: scherm verbergen of tonen.", 944).slice(0, 2).forEach((l, i, arr) => g.fillText(l, 40, HH - 36 - (arr.length - 1 - i) * 32));
   xrHandBtns = btns; xrHandTex.needsUpdate = true;
 }
 /* every frame: point at the hand screen with the other controller (cursor + highlight), or tap it with the controller tip */
@@ -2952,6 +3143,42 @@ function openPeer(Peer, id) {
 
 /* laptop side */
 let qSession = null;
+/* put the index of an mp4 (the 'moov' box) in front, so a headset can start playing while the rest still arrives.
+   Same bytes otherwise; the chunk offsets inside the index shift by the size of the moved box. */
+async function faststart(blob) {
+  try {
+    const head = async (o, n) => new DataView(await blob.slice(o, o + n).arrayBuffer());
+    const four = (dv, p) => String.fromCharCode(dv.getUint8(p), dv.getUint8(p + 1), dv.getUint8(p + 2), dv.getUint8(p + 3));
+    const boxes = []; let o = 0;
+    while (o + 8 <= blob.size && boxes.length < 64) {
+      const h = await head(o, 16); let sz = h.getUint32(0), hl = 8;
+      if (sz === 1) { sz = Number(h.getBigUint64(8)); hl = 16; } else if (sz === 0) sz = blob.size - o;
+      if (sz < hl || o + sz > blob.size) break;
+      boxes.push({ type: four(h, 4), o, sz }); o += sz;
+    }
+    const mv = boxes.find(b => b.type === "moov"), md = boxes.find(b => b.type === "mdat");
+    if (!mv || !md || mv.o < md.o || mv.sz > 96 * 1048576) return blob;   /* already fine, or not an mp4 we understand */
+    const moov = new Uint8Array(await blob.slice(mv.o, mv.o + mv.sz).arrayBuffer()), dv = new DataView(moov.buffer);
+    const from = md.o, to = mv.o, shift = mv.sz;
+    const walk = (s, e) => {
+      for (let p = s; p + 8 <= e;) {
+        let bs = dv.getUint32(p), hl = 8; const t = four(dv, p + 4);
+        if (bs === 1) { bs = Number(dv.getBigUint64(p + 8)); hl = 16; } else if (bs === 0) bs = e - p;
+        if (bs < hl || p + bs > e) throw new Error("kapotte mp4-index");
+        if (/^(moov|trak|mdia|minf|stbl|edts|dinf)$/.test(t)) walk(p + hl, p + bs);
+        else if (t === "stco") { const n = dv.getUint32(p + hl + 4); for (let k = 0; k < n; k++) { const q = p + hl + 8 + k * 4, v = dv.getUint32(q); if (v >= from && v < to) { if (v + shift > 0xffffffff) throw new Error("te groot"); dv.setUint32(q, v + shift); } } }
+        else if (t === "co64") { const n = dv.getUint32(p + hl + 4); for (let k = 0; k < n; k++) { const q = p + hl + 8 + k * 8, v = dv.getBigUint64(q); if (v >= BigInt(from) && v < BigInt(to)) dv.setBigUint64(q, v + BigInt(shift)); } }
+        p += bs;
+      }
+    };
+    walk(dv.getUint32(0) === 1 ? 16 : 8, moov.length);
+    const parts = [];
+    for (const b of boxes) { if (b === mv) continue; if (b === md) parts.push(moov); parts.push(blob.slice(b.o, b.o + b.sz)); }
+    if (o < blob.size) parts.push(blob.slice(o));
+    const out = new Blob(parts, { type: blob.type || "video/mp4" });
+    return out.size === blob.size ? out : blob;
+  } catch (e) { console.warn("faststart", e); return blob; }
+}
 async function buildPayload() {
   const out = JSON.parse(JSON.stringify(tour)); out.viewerOnly = true; delete out.demo;
   const videos = [];
@@ -2962,7 +3189,7 @@ async function buildPayload() {
     if (isVideo(s) && s.video) {
       const blob = s.video.startsWith("idb:") ? await lib.get("blobs", s.video.slice(4)) : s.video.startsWith("data:") ? dataUrlToBlob(s.video) : await (await fetch(s.video)).blob();
       if (!blob) throw new Error(`de video van ‘${s.name}’ zit niet meer in deze browser`);
-      videos.push({ id: s.id, blob }); s.video = "peer:" + s.id;
+      videos.push({ id: s.id, blob: await faststart(blob) }); s.video = "peer:" + s.id;
     }
   }
   return { json: new TextEncoder().encode(JSON.stringify(out)), videos };
@@ -2987,11 +3214,11 @@ async function sendToQuest() {
     if (!peer) throw new Error("geen vrije code gevonden, probeer opnieuw");
     const url = location.origin + location.pathname + "?q=" + code;
     const qr = qrcode(0, "M"); qr.addData(url); qr.make();
-    qSession = { peer, code, conns: [], payload, qr: qr.createDataURL(6, 2), samen: false };
+    qSession = { peer, code, conns: [], payload, qr: qr.createDataURL(6, 2), qrBig: qr.createDataURL(16, 4), samen: false };
     peer.on("connection", conn => handleQuestConn(conn));
-    peer.on("disconnected", () => { try { if (qSession?.peer === peer) peer.reconnect(); } catch (e) {} });
+    peer.on("disconnected", () => { try { if (qSession?.peer === peer && !peer.destroyed) peer.reconnect(); } catch (e) {} });
     peer.on("error", e => { if (e.type !== "peer-unavailable") console.warn(e); });
-    showQuestCard();
+    renderHeader(); showQuestCard();
   } catch (err) {
     console.error(err); stopQuestSession(true);
     b.innerHTML = `<h3>Open op de VR-bril</h3><p></p><p class="hint">Tips: zet de laptop en de VR-bril op hetzelfde wifi-netwerk. Blokkeert het schoolnetwerk de verbinding, gebruik dan de hotspot van een gsm, of exporteer de tour en open hem via de VR-viewer starter.</p><div class="row"><button class="btn">Sluiten</button></div>`;
@@ -2999,86 +3226,157 @@ async function sendToQuest() {
     b.querySelector("button").onclick = closeCard; $("#card").dataset.busy = "1"; $("#card").hidden = false;
   }
 }
+const qBusy = () => qSession ? qSession.conns.filter(r => r.alive !== false && !r.ready && r.state !== "verbinding verbroken").length : 0;
 function showQuestCard() {
   const S = qSession, b = $("#cardBody"); if (!S) return;
   b.innerHTML = `<h3>Open op de VR-bril</h3>
     <div class="qrwrap"><div class="qr"><img alt="QR-code om deze tour op de VR-bril te openen"></div>
-      <div class="qrtext"><p><b>Scan</b> deze QR-code met de VR-bril.</p><p>Of open op de VR-bril <span class="url"></span> en typ de code:</p><div class="qcode"></div></div></div>
+      <div class="qrtext"><p><b>Scan</b> deze QR-code met de VR-bril.</p><p>Of open op de VR-bril <span class="url"></span> en typ de code:</p><div class="qcode"></div>
+      <button class="btn" id="qBigBtn">⛶ Groot tonen voor de klas</button></div></div>
     <label class="samenchk"><input type="checkbox" id="qSamen"><span><b>Samen-les</b>: de brillen blijven verbonden en volgen jou live. Ze gaan mee naar jouw standpunt, positie en stap van de rondleiding, en zien de icoontjes die jij opent. Studenten kijken zelf vrij rond. Jij geeft de uitleg.</span></label>
-    <p class="hint">De tour wordt naar de bril gestuurd en blijft daar bewaard. Heeft een bril deze versie al, dan wordt ze niet opnieuw verstuurd. Meerdere brillen tegelijk kan.</p>
+    <p class="hint"><b>Laat dit venster open</b> tot alle brillen <i>klaar ✓</i> tonen: de tour gaat rechtstreeks van deze laptop naar elke bril. Een video kan al bekeken worden terwijl de rest nog binnenkomt. Heeft een bril deze versie al, dan wordt ze niet opnieuw verstuurd.</p>
     <p class="hint" id="qAudioWarn" hidden></p>
     <div class="qconns" id="qConns"></div>
-    <div class="row"><button class="btn primary" id="qStop">Klaar</button></div>`;
+    <div class="row"><button class="btn primary" id="qStop">Klaar</button><span id="qStopWrap"></span></div>`;
   b.querySelector(".qr img").src = S.qr;
   b.querySelector(".url").textContent = location.host + location.pathname + "?quest";
   b.querySelector(".qcode").textContent = fmtCode(S.code);
   { const n = route().filter(needsTts).length, w = $("#qAudioWarn"); if (n && !S.samen) { w.hidden = false; w.textContent = `Let op: ${n} ${n === 1 ? "stap" : "stappen"} van de rondleiding ${n === 1 ? "heeft" : "hebben"} nog geen audio. De VR-bril kan zelf niet voorlezen. Klik eerst bij Rondleiding (in Bewerken) op ‘🔊 Maak audio’ en stuur de tour daarna.`; } }
+  $("#qBigBtn").onclick = showQuestBig;
   $("#qSamen").checked = !!S.samen;
   $("#qSamen").onchange = e => { setSamenTeacher(e.target.checked); $("#qStop").textContent = e.target.checked ? "Start de les" : "Klaar"; };
   $("#qStop").textContent = S.samen ? "Terug naar de les" : "Klaar";
-  $("#qStop").onclick = () => { if (qSession?.samen) { closeCard(); renderSamenBar(); } else stopQuestSession(); };
+  $("#qStop").onclick = () => {
+    if (qSession?.samen) { closeCard(); renderSamenBar(); return; }
+    const n = qBusy();
+    if (!n) { stopQuestSession(); return; }
+    const w = $("#qStopWrap");
+    w.innerHTML = `<span class="confirm">Nog ${n} ${n === 1 ? "bril is" : "brillen zijn"} bezig. <button class="btn small danger">Toch stoppen</button><button class="btn small">Verder laten lopen</button></span>`;
+    const [y, no] = w.querySelectorAll("button");
+    y.onclick = () => stopQuestSession(); no.onclick = () => { w.innerHTML = ""; closeCard(); toast("Het versturen loopt verder. Klik bovenaan op ‘Naar VR-bril’ om het venster terug te openen."); };
+  };
   $("#card").dataset.busy = "1"; $("#card").hidden = false;
   renderQConns();
 }
+/* full screen for the projector: a big QR code and the code, with a live count of the headsets */
+function showQuestBig() {
+  const S = qSession; if (!S) return;
+  const el = $("#qBig");
+  el.innerHTML = `<div class="qbqr"><img alt="QR-code om de tour op de VR-bril te openen"></div>
+    <div class="qbside"><h2>Scan met je VR&#8209;bril</h2><p>Of open <b class="qburl"></b> en typ de code:</p><div class="qbcode"></div>
+      <div class="qbcount" id="qbCount"></div><div class="qblist" id="qbList"></div>
+      <div class="row"><button class="btn" id="qbSmall">Kleiner</button><button class="btn danger" id="qbStop">Stop met versturen</button></div></div>`;
+  el.querySelector("img").src = S.qrBig || S.qr;
+  el.querySelector(".qburl").textContent = location.host + location.pathname + "?quest";
+  el.querySelector(".qbcode").textContent = fmtCode(S.code);
+  $("#qbSmall").onclick = hideQuestBig;
+  $("#qbStop").onclick = () => { const n = qBusy(); if (n && !$("#qbStop").dataset.sure) { $("#qbStop").dataset.sure = "1"; $("#qbStop").textContent = `Nog ${n} bezig. Klik opnieuw om te stoppen`; return; } hideQuestBig(); stopQuestSession(); };
+  el.hidden = false;
+  try { el.requestFullscreen?.().catch(() => {}); } catch (e) {}
+  renderQConns();
+}
+function hideQuestBig() { const el = $("#qBig"); if (el.hidden) return; el.hidden = true; el.innerHTML = ""; try { if (document.fullscreenElement === el) document.exitFullscreen(); } catch (e) {} }
+document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && !$("#qBig").hidden) hideQuestBig(); });
 function stopQuestSession(silent) {
-  clearInterval(samenTimer); setPointing(false);
+  clearInterval(samenTimer); setPointing(false); hideQuestBig();
   if (qSession) {
     const S = qSession; qSession = null;
     if (S.samen) { const str = JSON.stringify({ t: "mode", samen: false }); for (const r of S.conns) if (r.ready && r.conn?.open) try { r.conn.send(str); } catch (e) {} }
     setTimeout(() => { try { S.peer.destroy(); } catch (e) {} }, 400);
   }
-  renderSamenBar();
+  renderSamenBar(); renderHeader();
   if (!silent) closeCard();
 }
 function renderQConns() {
   renderSamenBar();
-  const el = $("#qConns"); if (!el || !qSession) return;
-  if (!qSession.conns.length) { el.innerHTML = '<p class="hint">Wachten op een bril…</p>'; return; }
-  el.innerHTML = "";
-  for (const r of qSession.conns) {
-    const d = document.createElement("div"); d.className = "qrow";
-    d.innerHTML = `<b></b><span class="hint"></span><div class="bar"><i></i></div>`;
-    d.querySelector("b").textContent = r.name; d.querySelector(".hint").textContent = r.state;
-    d.querySelector("i").style.width = Math.round(r.pct * 100) + "%";
-    el.appendChild(d);
+  if (!qSession) return;
+  const rows = qSession.conns;
+  const el = $("#qConns");
+  if (el) {
+    if (!rows.length) el.innerHTML = '<p class="hint">Wachten op een bril…</p>';
+    else {
+      el.innerHTML = "";
+      for (const r of rows) {
+        const d = document.createElement("div"); d.className = "qrow";
+        d.innerHTML = `<b></b><span class="hint"></span><div class="bar"><i></i></div>`;
+        d.querySelector("b").textContent = r.name; d.querySelector(".hint").textContent = r.state;
+        d.querySelector("i").style.width = Math.round(r.pct * 100) + "%";
+        el.appendChild(d);
+      }
+    }
+  }
+  const bc = $("#qbCount"), bl = $("#qbList");
+  if (bc && bl) {
+    const ready = rows.filter(r => r.ready).length, busy = qBusy();
+    bc.textContent = rows.length ? `${ready} ${ready === 1 ? "bril" : "brillen"} klaar${busy ? ` · ${busy} bezig` : ""}` : "Wachten op de eerste bril…";
+    bl.innerHTML = "";
+    for (const r of rows) {
+      const d = document.createElement("span"); d.className = "qbchip" + (r.ready ? " ok" : r.alive === false ? " bad" : "");
+      d.textContent = r.name + (r.ready ? " ✓" : r.alive === false ? " ✕" : ` ${Math.round(r.pct * 100)}%`);
+      bl.appendChild(d);
+    }
   }
 }
-async function drainConn(conn) { const dc = conn.dataChannel; if (!dc) return; while (dc.bufferedAmount > 4 * 1048576) await new Promise(r => setTimeout(r, 25)); }
+/* wait until the data channel has room again (an event, so it keeps going when this tab is in the background) */
+async function drainConn(conn) {
+  const dc = conn.dataChannel; if (!dc) return;
+  while (dc.readyState === "open" && dc.bufferedAmount > 4 * 1048576) {
+    dc.bufferedAmountLowThreshold = 1048576;
+    await new Promise(r => { const t = setTimeout(done, 1500); function done() { clearTimeout(t); dc.removeEventListener("bufferedamountlow", done); r(); } dc.addEventListener("bufferedamountlow", done); });
+  }
+  if (dc.readyState !== "open") throw new Error("verbinding verbroken");
+}
 function handleQuestConn(conn) {
   const session = qSession; if (!session) return;
   const row = { name: "Bril " + (session.conns.length + 1), pct: 0, state: "verbinden…", conn, ready: false, answers: {}, follow: true };
   session.conns.push(row); renderQConns();
-  const send = async () => {
+  let sending = false;
+  const send = async from => {
+    if (sending) return; sending = true;
     try {
-      row.state = "versturen…"; renderQConns();
       const { json, videos } = session.payload;
-      const total = json.byteLength + videos.reduce((a, v) => a + v.blob.size, 0) || 1; let sent = 0, n = 0;
+      const total = json.byteLength + videos.reduce((a, v) => a + v.blob.size, 0) || 1;
+      from = clamp(Math.floor(+from || 0), 0, total);
+      row.state = from ? `verder versturen vanaf ${Math.round(from / total * 100)}%…` : "versturen…"; renderQConns();
+      let sent = from, n = 0, base = 0;
       const pump = async bytes => {
         for (let o = 0; o < bytes.byteLength; o += QCHUNK) {
           if (qSession !== session) throw new Error("gestopt");
           await drainConn(conn);
+          /* the headset confirms what it has stored; never run more than 24 MB ahead of that (its memory stays small) */
+          while (row.acks && sent - row.acked > 24 * 1048576) {
+            if (qSession !== session || !conn.open) throw new Error(conn.open ? "gestopt" : "verbinding verbroken");
+            await new Promise(r => { const t = setTimeout(r, 2000); row.onAck = () => { clearTimeout(t); r(); }; });
+          }
           const part = bytes.subarray(o, o + QCHUNK); conn.send(part);
           sent += part.byteLength; row.pct = sent / total;
-          if (++n % 12 === 0) renderQConns();
+          if (++n % 16 === 0) { row.state = "versturen…"; renderQConns(); }
         }
       };
-      await pump(json);
-      for (const v of videos) for (let o = 0; o < v.blob.size; o += 4 * 1048576) await pump(new Uint8Array(await v.blob.slice(o, o + 4 * 1048576).arrayBuffer()));
+      if (from < json.byteLength) await pump(json.subarray(from));
+      base = json.byteLength;
+      for (const v of videos) {
+        const s0 = Math.max(0, from - base);
+        for (let o = s0; o < v.blob.size; o += 4 * 1048576) await pump(new Uint8Array(await v.blob.slice(o, Math.min(v.blob.size, o + 4 * 1048576)).arrayBuffer()));
+        base += v.blob.size;
+      }
       conn.send(JSON.stringify({ t: "end" }));
       row.pct = 1; row.state = "verstuurd, de bril slaat op…"; renderQConns();
-    } catch (e) { row.state = "mislukt: " + (e.message || e); renderQConns(); }
+    } catch (e) { if (!row.ready) { row.state = conn.open ? "mislukt: " + (e.message || e) : "verbinding verbroken"; renderQConns(); } }
+    finally { sending = false; }
   };
   const ready = () => { row.ready = true; row.alive = true; row.pct = 1; renderQConns(); if (session.samen) { try { conn.send(JSON.stringify({ t: "mode", samen: true })); conn.send(JSON.stringify(samenState())); } catch (e) {} } };
   conn.on("open", () => {
     const { json, videos } = session.payload;
-    const head = { t: "werftour", v: 2, id: tour.id, hash: session.payload.hash, samen: !!session.samen, title: tour.title || "Tour", kind: tour.kind, json: json.byteLength, videos: videos.map(v => ({ id: v.id, size: v.blob.size, type: v.blob.type })) };
+    const head = { t: "werftour", v: 3, id: tour.id, hash: session.payload.hash, samen: !!session.samen, title: tour.title || "Tour", kind: tour.kind, json: json.byteLength, videos: videos.map(v => ({ id: v.id, size: v.blob.size, type: v.blob.type })) };
     conn.send(JSON.stringify(head));
   });
   conn.on("data", d => {
     if (typeof d !== "string") return;
     let m; try { m = JSON.parse(d); } catch (e) { return; }
-    if (m.t === "hello" && m.name) row.name = m.name;
-    else if (m.t === "need") send();
+    if (m.t === "hello" && m.name) { row.name = m.name; for (const o of session.conns) if (o !== row && o.name === m.name && o.alive === false) o.hidden = true; }
+    else if (m.t === "need") { row.acks = !!m.acks; row.acked = +m.from || 0; send(m.from); }
+    else if (m.t === "ack") { row.acked = +m.got || 0; if (row.onAck) { const f = row.onAck; row.onAck = null; f(); } }
     else if (m.t === "have") { row.state = "had deze versie al ✓"; ready(); }
     else if (m.t === "done") { row.state = "klaar ✓"; ready(); }
     else if (m.t === "st") row.follow = !!m.follow;
@@ -3091,6 +3389,27 @@ function handleQuestConn(conn) {
 $("#questBtn").onclick = () => qSession ? showQuestCard() : sendToQuest();
 
 /* headset side */
+const VCH = 2 * 1048576;                      /* videos are stored on the headset in pieces of 2 MB: key#0, key#1… plus key#n with the size */
+const dlProg = new Map();                     /* video key -> fraction that is in (only while a download runs) */
+let dl = null;                                /* the download in progress */
+const canStream = () => !!navigator.serviceWorker?.controller;
+async function delVideo(k) {
+  const info = await lib.get("blobs", k + "#n");
+  if (info) { for (let i = 0; i * (info.ch || VCH) < info.size; i++) await lib.del("blobs", k + "#" + i); await lib.del("blobs", k + "#n"); }
+  await lib.del("blobs", k); dlProg.delete(k);
+}
+async function delTourVideos(id) { try { const d = await lib.get("data", id); for (const s of JSON.parse(d || "{}").scenes || []) if (s.video?.startsWith("idb:")) await delVideo(s.video.slice(4)); } catch (e) {} }
+/* a received video: one blob, or pieces that are (partly) in */
+async function videoFromPieces(k) {
+  const info = await lib.get("blobs", k + "#n"); if (!info) return null;
+  const ch = info.ch || VCH;
+  if ((info.have || 0) >= info.size) {
+    const parts = [];
+    for (let i = 0; i * ch < info.size; i++) { const p = await lib.get("blobs", k + "#" + i); if (!p) return { info, partial: true }; parts.push(p); }
+    return { info, blob: new Blob(parts, { type: info.type || "video/mp4" }) };
+  }
+  return { info, partial: true };
+}
 function showQuestHome() {
   if (samen.conn) { try { samen.conn.close(); } catch (e) {} samen.on = false; samen.conn = null; }
   stopGuide(); closeCard(); hideBim(); hidePicker();
@@ -3109,13 +3428,14 @@ async function renderQuestList() {
     row.innerHTML = `${m.thumb ? '<img class="th" alt="">' : '<span class="th"></span>'}<div style="min-width:0"><b></b><small></small></div><div class="acts"><button class="btn primary">Openen</button><span class="dw"><button class="btn danger">Verwijderen</button></span></div>`;
     if (m.thumb) row.querySelector("img").src = m.thumb;
     row.querySelector("b").textContent = m.name || "Tour";
-    row.querySelector("small").textContent = `${kindLabel(m.kind)} · ontvangen ${ago(m.updated)} · ${fmtMB(m.size * 0.75 + (m.videoSize || 0))}`;
+    const busy = dl && dl.id === m.id && dl.active;
+    row.querySelector("small").textContent = `${kindLabel(m.kind)} · ` + (m.partial ? (busy ? `komt binnen: ${Math.round(dl.got / dl.total * 100)}%` : `onvolledig: scan de code opnieuw om verder te laden`) : `ontvangen ${ago(m.updated)}`) + ` · ${fmtMB(m.size * 0.75 + (m.videoSize || 0))}`;
     row.querySelector(".acts > .btn").onclick = () => openReceived(m.id);
     const dw = row.querySelector(".dw");
     dw.querySelector("button").onclick = () => {
       dw.innerHTML = '<span class="confirm">Verwijderen? <button class="btn small danger">Ja</button><button class="btn small">Nee</button></span>';
       const [y, n] = dw.querySelectorAll("button");
-      y.onclick = async () => { try { const d = await lib.get("data", m.id); for (const s of JSON.parse(d || "{}").scenes || []) if (s.video?.startsWith("idb:")) await lib.del("blobs", s.video.slice(4)); } catch (e) {} await lib.del("meta", m.id); await lib.del("data", m.id); renderQuestList(); };
+      y.onclick = async () => { if (dl && dl.id === m.id) dl.abort(); await delTourVideos(m.id); await lib.del("meta", m.id); await lib.del("data", m.id); renderQuestList(); };
       n.onclick = renderQuestList;
     };
     el.appendChild(row);
@@ -3141,84 +3461,182 @@ function questStatus(msg, frac, isError) {
   $("#qBar").style.width = Math.round((frac || 0) * 100) + "%";
   $("#qGo").disabled = !isError && frac < 1;
 }
+/* progress of a running download: on the Quest page, and (in a tour) as a toast / on the hand screen */
+let dlShown = 0;
+function dlStatus(msg, frac) {
+  if (screen === "quest") questStatus(msg, frac);
+  else if (renderer.xr.isPresenting) { if (xrHand && xrHand.visible) drawHand(); }
+  else if (msg && performance.now() - dlShown > 8000) { dlShown = performance.now(); toast(msg); }
+}
+function myHeadsetName() { try { return localStorage.getItem("werftour-name") || ""; } catch (e) { return ""; } }
+const fallbackName = "VR-bril " + Math.random().toString(36).slice(2, 5).toUpperCase();
 async function receiveFromLaptop(raw) {
   const code = String(raw || "").toUpperCase().replace(/[^0-9A-Z]/g, "");
   if (code.length !== 6) { questStatus("Een code heeft 6 tekens, bijvoorbeeld K7P 3QX.", 0, true); return; }
   $("#qCodeIn").value = fmtCode(code);
+  if (dl && dl.active) { if (dl.code === code) { questStatus("Deze tour komt al binnen…", dl.got / dl.total); return; } dl.abort(); }
+  const job = dl = { code, active: true, tries: 0, got: 0, total: 1, id: null, title: "", peer: null, aborted: false, abort() { this.aborted = true; this.active = false; try { this.peer?.destroy(); } catch (e) {} } };
   questStatus(`Verbinden met de laptop (code ${fmtCode(code)})…`, 0.02);
-  let peer = null;
-  const myName = (() => { try { return localStorage.getItem("werftour-name") || ""; } catch (e) { return ""; } })() || "VR-bril " + Math.random().toString(36).slice(2, 5).toUpperCase();
-  try {
-    const Peer = await loadPeer();
-    peer = await openPeer(Peer);
-    const conn = peer.connect(PEER_PREFIX + code.toLowerCase(), { reliable: true, serialization: "raw" });
-    const res = await new Promise((ok, no) => {
-      let head = null, buf = null, got = 0, vi = -1, vgot = 0, recv = 0, total = 1, done = false, last = 0;
-      const vids = [];
-      const to = setTimeout(() => no(new Error("de laptop antwoordt niet. Staat het venster ‘Open op de VR-bril’ nog open?")), 25000);
-      peer.on("error", e => { clearTimeout(to); if (!done) no(new Error(e?.type === "peer-unavailable" ? "deze code is niet (meer) actief. Kijk de code op de laptop na." : (e?.message || e?.type || "verbindingsfout"))); });
-      conn.on("open", () => { clearTimeout(to); conn.send(JSON.stringify({ t: "hello", name: myName })); questStatus("Verbonden, de tour komt binnen…", 0.03); });
-      conn.on("data", d => {
-        if (typeof d === "string") {
-          let m; try { m = JSON.parse(d); } catch (e) { return; }
-          if (m.t === "werftour") {
-            head = m; buf = new Uint8Array(m.json); total = m.json + m.videos.reduce((a, v) => a + v.size, 0) || 1;
-            lib.get("meta", m.id).then(ex => {
-              if (ex && ex.received && m.hash && ex.hash === m.hash) { done = true; conn.send(JSON.stringify({ t: "have" })); ok({ have: true, head, conn }); }
-              else conn.send(JSON.stringify({ t: "need" }));
-            }, () => conn.send(JSON.stringify({ t: "need" })));
-          }
-          else if (m.t === "end") { done = true; ok({ head, buf, vids, conn }); }
-          else if (done) samenHandle(m);
-          else if (m.t === "s") samen.last = m;
-          return;
-        }
-        if (!head || done) return;
-        const u = d instanceof ArrayBuffer ? new Uint8Array(d) : new Uint8Array(d.buffer, d.byteOffset, d.byteLength);
-        let off = 0;
-        while (off < u.length) {
-          if (got < head.json) { const n = Math.min(head.json - got, u.length - off); buf.set(u.subarray(off, off + n), got); got += n; off += n; continue; }
-          while (vi < 0 || (vi < head.videos.length && vgot >= head.videos[vi].size)) { vi++; vgot = 0; vids[vi] = []; }
-          if (vi >= head.videos.length) break;
-          const n = Math.min(head.videos[vi].size - vgot, u.length - off); vids[vi].push(u.slice(off, off + n)); vgot += n; off += n;
-        }
-        recv += u.length;
-        const now = performance.now(); if (now - last > 200) { last = now; questStatus(`‘${head.title}’ ontvangen: ${fmtMB(recv)} van ${fmtMB(total)}`, recv / total); }
-      });
-      conn.on("close", () => { if (!done) no(new Error("de verbinding werd verbroken")); else if (samen.conn === conn) samenLost(); });
-      conn.on("error", e => { if (!done) no(new Error(e?.message || "verbindingsfout")); });
-    });
-    let id = res.head.id;
-    if (!res.have) {
-      questStatus("Opslaan op de bril…", 1);
-      const t = JSON.parse(new TextDecoder().decode(res.buf));
-      if (!t || !Array.isArray(t.scenes)) throw new Error("dit is geen Werftour-tour");
-      const existing = t.id && await lib.get("meta", t.id);
-      if (existing && !existing.received) t.id = uid();   /* never overwrite an editable project on this device */
-      if (existing && existing.received) { try { const old = JSON.parse(await lib.get("data", t.id) || "{}"); for (const s of old.scenes || []) if (s.video?.startsWith("idb:")) await lib.del("blobs", s.video.slice(4)); } catch (e) {} }
+  for (;;) {
+    let r;
+    try { r = await receiveOnce(job); }
+    catch (err) { r = { error: err }; }
+    if (job.aborted) return;
+    if (!r.error) { job.active = false; return; }
+    console.error(r.error);
+    try { job.peer?.destroy(); } catch (e) {} job.peer = null;
+    const fatal = r.error.fatal || ++job.tries > 6;
+    if (fatal) {
+      job.active = false;
+      const msg = "Dat lukte niet: " + (r.error.message || r.error) + (r.error.fatal ? "" : " Tip: zet de VR-bril en de laptop op hetzelfde wifi-netwerk, of gebruik de hotspot van een gsm.");
+      if (screen === "quest") questStatus(msg, 0, true); else toast(msg);
+      renderQuestList(); if (renderer.xr.isPresenting && xrHand) drawHand();
+      return;
+    }
+    const wait = Math.min(10, 2 * job.tries);
+    dlStatus(`Verbinding weg (${r.error.message || r.error}). Opnieuw proberen over ${wait} s…`, job.got / job.total);
+    await new Promise(ok => setTimeout(ok, wait * 1000));
+    if (job.aborted) return;
+  }
+}
+function fatalErr(msg) { const e = new Error(msg); e.fatal = true; return e; }
+async function receiveOnce(job) {
+  const code = job.code, myName = myHeadsetName() || fallbackName;
+  const Peer = await loadPeer();
+  const peer = job.peer = await openPeer(Peer);
+  const conn = peer.connect(PEER_PREFIX + code.toLowerCase(), { reliable: true, serialization: "raw" });
+  return await new Promise((ok, no) => {
+    let head = null, meta = null, t = null, keys = [], done = false, settled = false, pos = 0, last = 0, lastData = performance.now();
+    let q = Promise.resolve(), buf = [], bufLen = 0, vi = 0, opened = false, flushes = 0;
+    const fail = e => { if (settled) return; settled = true; clearTimeout(to); clearInterval(stall); try { conn.close(); } catch (er) {} no(e); };
+    const finish = v => { if (settled) return; settled = true; clearTimeout(to); clearInterval(stall); ok(v); };
+    const to = setTimeout(() => fail(job.got ? new Error("de laptop antwoordt niet meer") : new Error("de laptop antwoordt niet. Staat het venster ‘Open op de VR-bril’ nog open?")), 25000);
+    const stall = setInterval(() => { if (head && !done && performance.now() - lastData > 30000) fail(new Error("er komt niets meer binnen")); }, 5000);
+    peer.on("error", e => fail(e?.type === "peer-unavailable" ? (job.got ? new Error("de laptop is niet meer bereikbaar") : fatalErr("deze code is niet (meer) actief. Kijk de code op de laptop na.")) : new Error(e?.message || e?.type || "verbindingsfout")));
+    peer.on("disconnected", () => { try { if (!peer.destroyed) peer.reconnect(); } catch (e) {} });
+    conn.on("open", () => { clearTimeout(to); conn.send(JSON.stringify({ t: "hello", name: myName })); dlStatus("Verbonden, de tour komt binnen…", job.got / job.total || 0.03); });
+    conn.on("close", () => { if (!done) fail(new Error("de verbinding werd verbroken")); else if (samen.conn === conn) samenLost(); });
+    conn.on("error", e => { if (!done) fail(new Error(e?.message || "verbindingsfout")); });
+    const saveMeta = () => lib.put("meta", meta.id, meta);
+    const flush = async () => {
+      if (!bufLen || settled) return;
+      const v = head.videos[vi], k = keys[vi], info = (await lib.get("blobs", k + "#n")) || { size: v.size, have: 0, type: v.type || "video/mp4", ch: VCH };
+      const piece = new Blob(buf, { type: "application/octet-stream" }); buf = []; const n = bufLen; bufLen = 0;
+      await lib.put("blobs", k + "#" + Math.floor(info.have / VCH), piece);
+      info.have += n; await lib.put("blobs", k + "#n", info);
+      job.got += n; meta.partial.got = job.got; dlProg.set(k, info.have / info.size); lastData = performance.now();
+      if (++flushes % 4 === 0 || info.have >= info.size) await saveMeta();
+      try { conn.send(JSON.stringify({ t: "ack", got: job.got })); } catch (e) {}
+    };
+    /* the tour itself (JSON) is in: store it, and open it right away */
+    const tourIn = async jsonBytes => {
+      t = JSON.parse(new TextDecoder().decode(jsonBytes));
+      if (!t || !Array.isArray(t.scenes)) throw fatalErr("dit is geen Werftour-tour");
+      const metas = await lib.all("meta");
+      const ex = metas.find(m => m.received && (m.id === head.id || m.origId === head.id));
+      if (ex) { await delTourVideos(ex.id); t.id = ex.id; }
+      else if (metas.some(m => m.id === t.id)) t.id = uid();   /* never overwrite an editable project on this device */
       t.id = t.id || uid();
-      let vs = 0;
-      for (let i = 0; i < res.head.videos.length; i++) {
-        const v = res.head.videos[i]; const blob = new Blob(res.vids[i] || [], { type: v.type || "video/mp4" });
-        const key = uid(); await lib.put("blobs", key, blob); vs += blob.size;
-        const s = t.scenes.find(x => x.id === v.id); if (s) { s.video = "idb:" + key; s.videoSize = blob.size; }
-      }
+      keys = head.videos.map(() => uid());
+      head.videos.forEach((v, i) => { const s = t.scenes.find(x => x.id === v.id); if (s) { s.video = "idb:" + keys[i]; s.videoSize = v.size; } });
+      for (let i = 0; i < keys.length; i++) { await lib.put("blobs", keys[i] + "#n", { size: head.videos[i].size, have: 0, type: head.videos[i].type || "video/mp4", ch: VCH }); dlProg.set(keys[i], 0); }
       t.viewerOnly = true; t.receivedAt = Date.now();
       const data = JSON.stringify(t);
       await lib.put("data", t.id, data);
-      await lib.put("meta", t.id, { id: t.id, name: t.title || "Tour", kind: t.kind, updated: t.receivedAt, size: data.length, videoSize: vs, thumb: t.scenes.find(s => s.thumb)?.thumb || "", scenes: t.scenes.length, received: true, hash: res.head.hash || "" });
-      id = t.id;
-      try { res.conn.send(JSON.stringify({ t: "done" })); } catch (e) {}
-    }
-    samen.on = !!res.head.samen; samen.follow = true; samen.code = code; samen.teacherHs = null;
-    samen.conn = res.conn;
-    questStatus(null); renderQuestList();
-    if (!(screen === "app" && tour?.id === id)) await openReceived(id);
-    if (samen.on) { toast("Samen-les: je volgt de docent."); if (samen.last) samenApply(samen.last, true); }
-  } catch (err) {
-    console.error(err); try { peer?.destroy(); } catch (e) {}
-    questStatus("Dat lukte niet: " + (err?.message || err) + " Tip: zet de VR-bril en de laptop op hetzelfde wifi-netwerk.", 0, true);
-  }
+      meta = { id: t.id, origId: head.id, name: t.title || "Tour", kind: t.kind, updated: t.receivedAt, size: data.length, videoSize: head.videos.reduce((a, v) => a + v.size, 0), thumb: t.scenes.find(s => s.thumb)?.thumb || "", scenes: t.scenes.length, received: true, hash: head.hash || "", partial: { hash: head.hash, got: head.json, keys } };
+      job.got = head.json; job.id = t.id;
+      await saveMeta();
+      openNow();
+    };
+    const openNow = () => {
+      if (opened) return; opened = true;
+      renderQuestList();
+      if (head.videos.length && !canStream()) { dlStatus("De tour komt binnen. De video kan je bekijken zodra hij volledig binnen is.", job.got / job.total); return; }
+      if (screen === "quest" || (screen === "app" && tour?.id !== job.id)) { questStatus(null); openReceived(job.id); }
+    };
+    let jsonBuf = null, jsonGot = 0;
+    const onBytes = async u => {
+      if (settled) return;
+      let off = 0;
+      while (off < u.length) {
+        if (pos < head.json) {
+          const n = Math.min(head.json - pos, u.length - off); jsonBuf.set(u.subarray(off, off + n), jsonGot); jsonGot += n; pos += n; off += n;
+          if (pos === head.json) await tourIn(jsonBuf);
+          continue;
+        }
+        /* which video, and how far into it */
+        let base = head.json; vi = 0;
+        while (vi < head.videos.length && pos >= base + head.videos[vi].size) { base += head.videos[vi].size; vi++; }
+        if (vi >= head.videos.length) break;
+        const vs = head.videos[vi].size, inV = pos - base, room = VCH - bufLen;
+        const n = Math.min(vs - inV, room, u.length - off);
+        buf.push(u.slice(off, off + n)); bufLen += n; pos += n; off += n;
+        if (bufLen >= VCH || inV + n >= vs) await flush();
+      }
+      const now = performance.now();
+      if (now - last > 400) { last = now; const f = (job.got + bufLen) / job.total; dlStatus(`‘${head.title}’ komt binnen: ${fmtMB(job.got)} van ${fmtMB(job.total)}`, f); }
+    };
+    const complete = async () => {
+      if (settled) return;
+      await flush();
+      if (settled) return;
+      if (pos < job.total) throw new Error("niet alles kwam binnen");
+      meta.partial = null; meta.updated = Date.now(); await saveMeta();
+      keys.forEach(k => dlProg.delete(k));
+      try { conn.send(JSON.stringify({ t: "done" })); } catch (e) {}
+      done = true; job.got = job.total;
+      samen.on = !!head.samen; samen.follow = true; samen.code = code; samen.teacherHs = null; samen.conn = conn;
+      questStatus(null); if (screen === "quest") renderQuestList();
+      if (!(screen === "app" && tour?.id === job.id)) await openReceived(job.id);
+      else { if (isVideo(cur) && !vid.getAttribute("src")) go(cur.id); toast("De tour is volledig binnen ✓"); if (renderer.xr.isPresenting && xrHand) drawHand(); }
+      if (samen.on) { toast("Samen-les: je volgt de docent."); if (samen.last) samenApply(samen.last, true); }
+      finish({ ok: true });
+    };
+    conn.on("data", d => {
+      if (settled && !done) return;
+      lastData = performance.now();
+      if (typeof d === "string") {
+        let m; try { m = JSON.parse(d); } catch (e) { return; }
+        if (m.t === "werftour") {
+          head = m; job.title = m.title; job.total = m.json + m.videos.reduce((a, v) => a + v.size, 0) || 1;
+          q = q.then(async () => {
+            const metas = await lib.all("meta");
+            const ex = metas.find(x => x.received && (x.id === m.id || x.origId === m.id));
+            if (ex && !ex.partial && m.hash && ex.hash === m.hash) {
+              job.id = ex.id; job.got = job.total; done = true; conn.send(JSON.stringify({ t: "have" }));
+              samen.on = !!m.samen; samen.follow = true; samen.code = code; samen.teacherHs = null; samen.conn = conn;
+              if (screen === "quest") { questStatus(null); renderQuestList(); }
+              if (!(screen === "app" && tour?.id === ex.id)) await openReceived(ex.id);
+              if (samen.on) { toast("Samen-les: je volgt de docent."); if (samen.last) samenApply(samen.last, true); }
+              finish({ ok: true, have: true }); return;
+            }
+            if (ex && ex.partial && ex.partial.hash === m.hash && ex.partial.got >= m.json) {
+              /* resume: the tour is stored already, only the rest of the video(s) is missing */
+              meta = ex; keys = ex.partial.keys || []; job.id = ex.id; job.got = ex.partial.got; pos = job.got;
+              t = JSON.parse(await lib.get("data", ex.id) || "null");
+              if (!t || keys.length !== m.videos.length) { pos = 0; job.got = 0; }
+              else {
+                /* the stored pieces are the truth (the meta is saved less often) */
+                let have = m.json;
+                for (let i = 0; i < keys.length; i++) { const inf = await lib.get("blobs", keys[i] + "#n"); dlProg.set(keys[i], inf ? inf.have / inf.size : 0); have += inf ? inf.have : 0; if (!inf || inf.have < inf.size) { for (let j = i + 1; j < keys.length; j++) { const o = await lib.get("blobs", keys[j] + "#n"); if (o && o.have) { o.have = 0; await lib.put("blobs", keys[j] + "#n", o); } } break; } }
+                pos = job.got = meta.partial.got = have;
+                conn.send(JSON.stringify({ t: "need", from: pos, acks: true })); openNow(); return;
+              }
+            }
+            pos = 0; job.got = 0; jsonBuf = new Uint8Array(m.json); jsonGot = 0;
+            conn.send(JSON.stringify({ t: "need", from: 0, acks: true }));
+          }).catch(fail);
+        }
+        else if (m.t === "end") q = q.then(complete).catch(fail);
+        else if (done) samenHandle(m);
+        else if (m.t === "s") samen.last = m;
+        return;
+      }
+      if (!head || done) return;
+      const u = d instanceof ArrayBuffer ? new Uint8Array(d) : new Uint8Array(d.buffer, d.byteOffset, d.byteLength).slice();
+      q = q.then(() => onBytes(u)).catch(fail);
+    });
+  });
 }
 $("#qGo").onclick = () => receiveFromLaptop($("#qCodeIn").value);
 try { $("#qName").value = localStorage.getItem("werftour-name") || ""; } catch (e) {}
@@ -3244,7 +3662,7 @@ renderer.setAnimationLoop(() => {
   if (screen !== "app") return;
   const xr = renderer.xr.isPresenting;
   if (guide.tween) stepTween(performance.now());
-  if (xr) { renderer.xr.updateCamera(camera); pollXRButtons(); updateHandPointer(); if (M) { if (!guide.tween) xrLocomotion(dt); rig.position.copy(player); } }
+  if (xr) { renderer.xr.updateCamera(camera); pollXRButtons(); updateHandPointer(); if (M) { if (!guide.tween) xrLocomotion(dt); rig.position.copy(player); } else if (!guide.tween) xrTurnOnly(); }
   else if (!cur) { /* empty project */ }
   else if (view === "pano") {
     camera.rotation.set(deg(pitch), -deg(yaw), 0);
@@ -3275,7 +3693,7 @@ renderer.setAnimationLoop(() => {
 
 let toastT; function toast(t) { const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 4200); }
 window.addEventListener("beforeunload", () => { if (saveT) saveNow(); });
-window.__werftour = { ifcToGlb };
+window.__werftour = { ifcToGlb, get vid() { return vid; } };
 
 (async () => {
   let data = null;
